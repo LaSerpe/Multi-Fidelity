@@ -5,6 +5,7 @@ import scipy as sp
 from scipy.linalg import cholesky, cho_solve, solve_triangular
 
 import math
+import time
 
 import sys
 
@@ -26,12 +27,12 @@ np.random.seed(0)
 col = ['r', 'b', 'm'];
 FONTSIZE = 22
 
-Nobs = 5;
+Nobs = 50;
 
 x_min = 0.0;
 x_max = 1.0;
 
-Np = 100;
+Np = 1000;
 xx = np.linspace(x_min, x_max, Np);
 
 # Define the models
@@ -85,58 +86,55 @@ observations = np.array(observations);
 
 
 class GP:
-	def __init__(self, Training_points, Training_values, Kernel, noise_level):
-		self.Training_points = Training_points;
-		self.Training_values = Training_values;
+	def __init__(self, Kernel):
 		self.kernel = Kernel;
-		self.noise_level = noise_level;
-
-		self.Ktt = self.correlation(self.Training_points, self.Training_points) + self.noise_level * np.eye(len(self.Training_points));
-		self.L = cholesky(self.Ktt, lower=True);
-		self.alpha = cho_solve((self.L, True), self.Training_values)
-
-	def correlation(self, x, y):
-		K = np.zeros((len(x), len(y)));
-		for i in range(len(x)):
-			for j in range(len(y)):
-				K[i, j] = self.kernel.__call__([[ x[i] ]], Y= [[ y[j] ]]);
-		return K;
 
 	def loglikelihood(self):
-		return 0.5*self.Training_values.T.dot(self.alpha) + np.log(np.diag(self.L)).sum();
+		return np.array(0.5*self.Training_values.T.dot(self.alpha) + np.log(np.diag(self.L)).sum()).flatten();
+
 
 	def cost_function(self, theta):
 		self.kernel.theta = theta;
-		K = self.correlation(self.Training_points, self.Training_points) + self.noise_level * np.eye(len(self.Training_points));
+		K = self.kernel(self.Training_points);
+		K[np.diag_indices_from(K)] += self.noise_level
 		self.L = cholesky(K, lower=True);
 		self.alpha = cho_solve((self.L, True), self.Training_values)
-		return self.loglikelihood(),
+		return self.loglikelihood();
 
-	def fit(self):
+
+	def fit(self, Training_points, Training_values, noise_level):
+
+		self.noise_level = noise_level;
+		self.Training_points = Training_points;
+		self.Training_values = Training_values;
+
 		MIN = 1e16;
-		constraints = ({'type': 'ineq', "fun": lambda x: x - 1.0e-2}, {'type': 'ineq', "fun": lambda x: - x + 1.0e1},)
+		bounds = self.kernel.bounds
 
-		Np = len(self.kernel.theta);
-		for int_it in range(20):
-			x0 = np.random.uniform(1.0e-2, 1.0e1, Np).reshape(1, Np); 
-
-			res = sp.optimize.minimize( self.cost_function, x0, method='SLSQP', constraints=constraints, tol=1e-8, options={'maxiter': 150,'ftol': 1e-06, 'disp': False});
+		for int_it in range(10):
+			x0 = np.random.uniform(bounds[:, 0], bounds[:, 1]);
+			res = sp.optimize.minimize(self.cost_function, x0, method="L-BFGS-B", bounds=bounds)
 			if (self.cost_function(res.x)[0] < MIN):
 				MIN = self.cost_function(res.x)
 				MIN_x = res.x;
 
 		self.kernel.theta = MIN_x;
+		Ktt = self.kernel(self.Training_points);
+		Ktt[np.diag_indices_from(Ktt)] += self.noise_level;
+		self.L = cholesky(Ktt, lower=True);
+		self.alpha = cho_solve((self.L, True), self.Training_values)
 
 
 	def predict(self, x):
-		k = self.correlation(self.Training_points, x);
-		mean = k.T.dot(self.alpha);
-		variance = cho_solve((self.L, True), k)
-		return mean, variance;
+		k = self.kernel(x, self.Training_points);
+		mean = k.dot(self.alpha);
+		v = cho_solve((self.L, True), k.T);
+		variance = self.kernel(x) - k.dot(v);
+		return mean.flatten(), variance;
 
 
 
-gp_restart = 100;
+gp_restart = 10;
 kernel = ConstantKernel(1.0**2, (3.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, length_scale_bounds=(1.0e-2, 1.0e1)) \
 + WhiteKernel(noise_level=1.0e-2, noise_level_bounds=(1.0e-6, 1.0e-0));
 
@@ -150,64 +148,25 @@ Br= [];
 V = [];
 
 
-kernel = RBF(length_scale=1.0, length_scale_bounds=(1.0e-2, 1.0e1));
-#gp = GP(Train_points[0].reshape(-1,1), observations[0][:, 0].reshape(-1,1), kernel, 1e-2);
-gp = GP(Train_points[0], observations[0][:, 0], kernel, 1e-2);
-gp.fit()
-
-
-exit()
-
-
-
-
-def correlation(x, y, kernel):
-	K = np.zeros((len(x), len(y)));
-	for i in range(len(x)):
-		for j in range(len(y)):
-			K[i, j] = kernel.__call__([[ x[i] ]], Y= [[ y[j] ]]);
-	return K;
-
-def loglikelihood(K, y_observations):
-	#y_observations.reshape(-1, 1);
-	return  - ( - y_observations.T.dot(np.linalg.inv(K)).dot(y_observations) - np.log(np.linalg.det(K)) )
-
-def cost_function(theta, x, y_observations):
-	K = correlation(x, x, RBF(length_scale=theta));
-	K += 1.0e-2 * np.eye(len(x));
-	L = cholesky(K, lower=True);
-	alpha = cho_solve((L, True), y_observations)
-	return 0.5*y_observations.T.dot(alpha) + np.log(np.diag(L)).sum()
 
 
 for Nm in range(Nmod):
 	if Nm == 0: 
 		H.append(np.zeros((1, Nobs_model[Nm])));
 
-		kernel = RBF(length_scale=1.01, length_scale_bounds=(1.0e-2, 1.0e1)) 
-		sub_K = correlation(Train_points[0], Train_points[0], kernel)
+		#kernel = RBF(length_scale=1.01, length_scale_bounds=(1.0e-2, 1.0e1)) 
+		
+		start = time.time();
+		gp = GP(kernel);
+		gp.fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), 1e-2);
+		print(time.time()-start)
 
-		MIN = 1e16;
-		constraints = ({'type': 'ineq', "fun": lambda x: x - 1.0e-2}, {'type': 'ineq', "fun": lambda x: - x + 1.0e1},)
+		start = time.time();
+		gp_ref = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b', n_restarts_optimizer=gp_restart, alpha=1e-2, normalize_y=False)
+		gp_ref.fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1))
+		print(time.time()-start)
 
-		print(observations[Nm][:, 0])
-		obs_minus_mean = observations[Nm][:, 0] 
-		print(obs_minus_mean)
-
-		for int_it in range(gp_restart):
-			x0 = np.random.uniform(1.0e-2, 1.0e1); 
-
-			res = sp.optimize.minimize( cost_function, x0, args=(Train_points[0], obs_minus_mean), method='SLSQP', constraints=constraints, tol=1e-8, options={'maxiter': 150,'ftol': 1e-06, 'disp': False});
-			if (cost_function(res.x, Train_points[0], obs_minus_mean ) < MIN):
-				MIN = cost_function(res.x, Train_points[0], obs_minus_mean )
-				MIN_x = res.x;
-
-		kernel = RBF(length_scale=1.01, length_scale_bounds=(1.0e-2, 1.0e1)) 
-		gp = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b', n_restarts_optimizer=gp_restart, alpha=1e-2, normalize_y=False)
-		gp.fit(Train_points[0].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1))
-
-		#sub_K += np.diag(1.0/observations[Nm][:, 1]**2)
-		K.append(sub_K);
+		
 
 	# 	J.append();
 	# 	B.append();
@@ -215,44 +174,22 @@ for Nm in range(Nmod):
 	# 	J.append();
 
 
-print(gp.kernel_)
-print(np.exp(gp.kernel_.theta[0]))
-print(MIN_x[0])
-yy_mean_post, yy_std_post = gp.predict(np.array(xx.reshape(-1, 1)), return_std=True);
+print(gp_ref.kernel_)
+print(gp.kernel)
+yy_mean_post, yy_std_post = gp_ref.predict(np.array(xx.reshape(-1, 1)), return_std=True);
 yy_mean_post = yy_mean_post.flatten();
 
-# yy = correlation(xx, observations[Nm][:, 0]), RBF(length_scale=np.exp(gp.kernel_.theta[0]))).dot(sub_K).dot(observations[Nm][:, 0])
-
-Kss = correlation(xx, xx, RBF(length_scale=np.exp(gp.kernel_.theta[0])));
-Kst = correlation(xx, Train_points[0], RBF(length_scale=MIN_x));
-Ktt = correlation(Train_points[0], Train_points[0], RBF(length_scale=np.exp(gp.kernel_.theta[0]))) + 1.0e-4 * np.eye(Nobs_model[0]);
-
-#yy = Kst.dot(np.linalg.inv(Ktt)).dot(observations[0][:, 0]-np.mean(observations[0][:, 0])) + np.mean(observations[0][:, 0])
-yy = Kst.dot(np.linalg.inv(Ktt)).dot(observations[0][:, 0]) 
-yy_cov = Kss - Kst.dot(np.linalg.inv(Ktt)).dot(Kst.T)
-
-# print(yy)
-# print(yy_cov_post)
-# print(correlation([0.0], [0.0], RBF(length_scale=np.exp(gp.kernel_.theta[0]))))
-
-
-
-tt = np.linspace(1.0e-2, 1.0e1, 1000)
-pp = [];
-for i in tt: pp.append( cost_function(i, Train_points[0], observations[0][:, 0]- np.mean(observations[0][:, 0])) );
-plt.figure()
-plt.plot(tt, pp, color='r', label='GP')
-plt.scatter(MIN_x[0], cost_function(MIN_x[0], Train_points[0], observations[0][:, 0]- np.mean(observations[0][:, 0])) )
-plt.xlabel('x', fontsize=FONTSIZE)
-plt.ylabel('y [-]', fontsize=FONTSIZE)
-plt.tight_layout()
-
-
+yy, vv = gp.predict(xx.reshape(-1, 1))
+ss = np.sqrt(np.diag(vv))
 
 
 
 plt.figure()
+plt.scatter(Train_points[0], observations[0][:, 0])
+
 plt.plot(xx, yy, color='r', label='GP')
+plt.fill_between(xx, yy-ss, yy+ss, facecolor='r', alpha=0.3, interpolate=True)
+
 plt.plot(xx, yy_mean_post, color='y', label='GP')
 plt.fill_between(xx, yy_mean_post-yy_std_post, yy_mean_post+yy_std_post, facecolor='y', alpha=0.3, interpolate=True)
 plt.xlabel('x', fontsize=FONTSIZE)
@@ -261,6 +198,78 @@ plt.tight_layout()
 
 plt.show()
 exit()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
