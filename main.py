@@ -42,6 +42,7 @@ def truth(x):
 	return np.sin(x/x_max*pi/2);
 
 def model_1(x):
+	#return [np.sin(x/x_max*pi*8)*x, 1e-2*np.random.normal(0.0, 1.0)];
 	return [x, 1e-2*np.random.normal(0.0, 1.0)];
 
 def model_2(x):
@@ -89,20 +90,23 @@ class GP:
 	def __init__(self, Kernel):
 		self.kernel = Kernel;
 
+
 	def loglikelihood(self):
-		return np.array(0.5*self.Training_values.T.dot(self.alpha) + np.log(np.diag(self.L)).sum()).flatten();
+		return np.array(0.5*(self.Training_values - self.basis.T.dot(self.regression_param) ).T.dot(self.alpha) + np.log(np.diag(self.L)).sum()).flatten();
 
 
 	def cost_function(self, theta):
-		self.kernel.theta = theta;
+		self.kernel.theta = theta[0:len(self.kernel.theta)];
+		if (len(self.kernel.theta) != len(theta)):
+			self.regression_param = np.array(theta[len(self.kernel.theta)::]).reshape(-1, 1);
 		K = self.kernel(self.Training_points);
 		K[np.diag_indices_from(K)] += self.noise_level
 		self.L = cholesky(K, lower=True);
-		self.alpha = cho_solve((self.L, True), self.Training_values)
+		self.alpha = cho_solve((self.L, True), (self.Training_values - self.basis.T.dot(self.regression_param) ) )
 		return self.loglikelihood();
 
 
-	def fit(self, Training_points, Training_values, noise_level):
+	def fit(self, Training_points, Training_values, noise_level, Basis=None):
 
 		self.noise_level = noise_level;
 		self.Training_points = Training_points;
@@ -111,6 +115,17 @@ class GP:
 		MIN = 1e16;
 		bounds = self.kernel.bounds
 
+		if Basis is None: 
+			self.basis = np.ones((1, len(self.Training_points)))
+			self.regression_param = np.zeros((1, 1));
+		else:
+			self.basis = Basis;
+			self.regression_param = np.ones((np.shape(Basis)[0], 1));
+			for i in self.regression_param: bounds = np.append(bounds, [[-10.0, 10.0]], axis=0)
+			# print(np.shape(bounds))
+			# print(type(bounds))
+			# print(bounds)
+
 		for int_it in range(10):
 			x0 = np.random.uniform(bounds[:, 0], bounds[:, 1]);
 			res = sp.optimize.minimize(self.cost_function, x0, method="L-BFGS-B", bounds=bounds)
@@ -118,19 +133,34 @@ class GP:
 				MIN = self.cost_function(res.x)
 				MIN_x = res.x;
 
-		self.kernel.theta = MIN_x;
+		if Basis is None:
+			self.kernel.theta = MIN_x;
+		else:
+			self.kernel.theta = MIN_x[0:len(self.kernel.theta)];
+			self.regression_param = MIN_x[len(self.kernel.theta)::].reshape(-1, 1);
+
 		Ktt = self.kernel(self.Training_points);
 		Ktt[np.diag_indices_from(Ktt)] += self.noise_level;
 		self.L = cholesky(Ktt, lower=True);
-		self.alpha = cho_solve((self.L, True), self.Training_values)
+		self.alpha = cho_solve((self.L, True), (Training_values - np.array(self.basis.T.dot(self.regression_param)) ))
 
 
-	def predict(self, x):
+
+
+	def predict(self, x, Basis= None):
+		if Basis is None: 
+			Basis = np.zeros((1, len(x)))
+
 		k = self.kernel(x, self.Training_points);
-		mean = k.dot(self.alpha);
+
+		print(np.shape(k.dot(self.alpha)))
+		print(np.shape(Basis.T.dot(np.array(self.regression_param))))
+
+		mean = np.array(Basis.T.dot(np.array(self.regression_param))) + k.dot(self.alpha);
+		#mean = k.dot(self.alpha);
 		v = cho_solve((self.L, True), k.T);
 		variance = self.kernel(x) - k.dot(v);
-		return mean.flatten(), variance;
+		return mean, variance;
 
 
 
@@ -147,26 +177,27 @@ B = [];
 Br= [];
 V = [];
 
-
+def basis_function(x):
+	# basis = np.ones((2, len(x)));
+	# for i in range(len(x)):
+	# 	basis[1, i] = np.sin(x[i]);
+	# return basis
+	return np.zeros((1, len(x) ));
 
 
 for Nm in range(Nmod):
 	if Nm == 0: 
-		H.append(np.zeros((1, Nobs_model[Nm])));
-
-		#kernel = RBF(length_scale=1.01, length_scale_bounds=(1.0e-2, 1.0e1)) 
+		H.append(basis_function(Train_points[Nm]));
 		
 		start = time.time();
-		gp = GP(kernel);
-		gp.fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), 1e-2);
+		Mfs.append(GP(kernel));
+		Mfs[0].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), 1e-2, H[Nm]);
 		print(time.time()-start)
 
 		start = time.time();
-		gp_ref = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b', n_restarts_optimizer=gp_restart, alpha=1e-2, normalize_y=False)
-		gp_ref.fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1))
+		gp_ref = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b', n_restarts_optimizer=gp_restart, alpha=1e-2, normalize_y=False);
+		gp_ref.fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1));
 		print(time.time()-start)
-
-		
 
 	# 	J.append();
 	# 	B.append();
@@ -175,13 +206,16 @@ for Nm in range(Nmod):
 
 
 print(gp_ref.kernel_)
-print(gp.kernel)
-yy_mean_post, yy_std_post = gp_ref.predict(np.array(xx.reshape(-1, 1)), return_std=True);
-yy_mean_post = yy_mean_post.flatten();
-
-yy, vv = gp.predict(xx.reshape(-1, 1))
+print(Mfs[0].kernel)
+print(Mfs[0].regression_param)
+print(np.mean(observations[0][:, 0]))
+yy, vv = Mfs[0].predict(xx.reshape(-1, 1), basis_function(xx)  ) 
+yy = yy.flatten();
 ss = np.sqrt(np.diag(vv))
 
+oy, os = gp_ref.predict(xx.reshape(-1, 1), return_std=True)
+oy = oy.flatten();
+os = os.flatten();
 
 
 plt.figure()
@@ -190,8 +224,10 @@ plt.scatter(Train_points[0], observations[0][:, 0])
 plt.plot(xx, yy, color='r', label='GP')
 plt.fill_between(xx, yy-ss, yy+ss, facecolor='r', alpha=0.3, interpolate=True)
 
-plt.plot(xx, yy_mean_post, color='y', label='GP')
-plt.fill_between(xx, yy_mean_post-yy_std_post, yy_mean_post+yy_std_post, facecolor='y', alpha=0.3, interpolate=True)
+
+plt.plot(xx, oy, color='b', label='GP_old')
+plt.fill_between(xx, oy-os, oy+os, facecolor='b', alpha=0.3, interpolate=True)
+
 plt.xlabel('x', fontsize=FONTSIZE)
 plt.ylabel('y [-]', fontsize=FONTSIZE)
 plt.tight_layout()
