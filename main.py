@@ -6,6 +6,7 @@ from scipy.linalg import cholesky, cho_solve, solve_triangular
 
 import math
 import time
+import copy
 
 import sys
 
@@ -22,12 +23,11 @@ from math import pi
 plt.rc('font',family='Times New Roman')
 
 
-np.random.seed(0)
+np.random.seed(1)
 
 col = ['r', 'b', 'm'];
 FONTSIZE = 22
 
-Nobs = 50;
 
 x_min = 0.0;
 x_max = 1.0;
@@ -38,27 +38,46 @@ xx = np.linspace(x_min, x_max, Np);
 # Define the models
 Nmod = 3; #thruth doesn't count
 
+# def truth(x):
+# 	return np.sin(x/x_max*pi/2);
+
+# def model_1(x):
+# 	return [x, 1e-8*np.random.normal(0.0, 1.0)];
+
+# def model_2(x):
+# 	return [-x**2 + 2.0*x, 1e-8*np.random.normal(0.0, 1.0)];
+
+# def model_3(x):
+# 	return [np.sin(x/x_max*pi/2) + 0.02, 1e-8*np.random.normal(0.0, 1.0)];
+
+
 def truth(x):
-	return np.sin(x/x_max*pi/2);
+	return np.sin(x/x_max*pi*8)*x + x;
 
 def model_1(x):
-	#return [np.sin(x/x_max*pi*8)*x, 1e-2*np.random.normal(0.0, 1.0)];
-	return [x, 1e-2*np.random.normal(0.0, 1.0)];
+	return [x, 1e-8*np.random.normal(0.0, 1.0)];
 
 def model_2(x):
-	return [-x**2 + 2.0*x, 1e-2*np.random.normal(0.0, 1.0)];
+	return [0.7*(np.sin(x/x_max*pi*8)*x + 0.0), 1e-8*np.random.normal(0.0, 1.0)];
 
 def model_3(x):
-	return [np.sin(x/x_max*pi/2) + 0.02, 1e-2*np.random.normal(0.0, 1.0)];
+	return [np.sin(x/x_max*pi*8)*x + x, 2e-8*np.random.normal(0.0, 1.0)];
+
+
 
 models = [model_1, model_2, model_3];
 
 
 # observations
+Nobs = 5;
 fx = np.random.uniform(x_min, x_max, Nobs) # this can change for datasets of different size
 
-Train_points = [fx for i in range(Nmod)];
+Train_points = [np.random.uniform(x_min, x_max, Nobs) for i in range(Nmod)];
 Nobs_model   = [Nobs for i in range(Nmod)];
+
+
+# Nobs_model   = [15, 7, 3];
+# Train_points = [np.random.uniform(x_min, x_max, Nobs_model[i]) for i in range(Nmod)];
 
 
 
@@ -87,8 +106,12 @@ observations = np.array(observations);
 
 
 class GP:
-	def __init__(self, Kernel):
-		self.kernel = Kernel;
+	def __init__(self, Kernel, Basis= None):
+		self.kernel = copy.deepcopy(Kernel);
+		if Basis is None: 
+			self.basis_function = None;
+		else:
+			self.basis_function = copy.deepcopy(Basis);
 
 
 	def loglikelihood(self):
@@ -106,21 +129,21 @@ class GP:
 		return self.loglikelihood();
 
 
-	def fit(self, Training_points, Training_values, noise_level, Basis=None):
+	def fit(self, Training_points, Training_values, noise_level):
 
 		self.noise_level = noise_level;
-		self.Training_points = Training_points;
-		self.Training_values = Training_values;
+		self.Training_points = Training_points[:];
+		self.Training_values = Training_values[:];
 
 		MIN = 1e16;
 		bounds = self.kernel.bounds
 
-		if Basis is None: 
+		if self.basis_function is None: 
 			self.basis = np.ones((1, len(self.Training_points)))
 			self.regression_param = np.zeros((1, 1));
 		else:
-			self.basis = Basis;
-			self.regression_param = np.ones((np.shape(Basis)[0], 1));
+			self.basis = self.basis_function(self.Training_points);
+			self.regression_param = np.ones((np.shape(self.basis)[0], 1));
 			for i in self.regression_param: bounds = np.append(bounds, [[-10.0, 10.0]], axis=0)
 			# print(np.shape(bounds))
 			# print(type(bounds))
@@ -133,7 +156,7 @@ class GP:
 				MIN = self.cost_function(res.x)
 				MIN_x = res.x;
 
-		if Basis is None:
+		if self.basis_function is None:
 			self.kernel.theta = MIN_x;
 		else:
 			self.kernel.theta = MIN_x[0:len(self.kernel.theta)];
@@ -147,20 +170,20 @@ class GP:
 
 
 
-	def predict(self, x, Basis= None):
-		if Basis is None: 
-			Basis = np.zeros((1, len(x)))
+	def predict(self, x, return_variance= False):
+		if self.basis_function is None: 
+			Basis = np.zeros((1, len(x)));
+		else:
+			Basis = self.basis_function(x);
 
 		k = self.kernel(x, self.Training_points);
-
-		print(np.shape(k.dot(self.alpha)))
-		print(np.shape(Basis.T.dot(np.array(self.regression_param))))
-
 		mean = np.array(Basis.T.dot(np.array(self.regression_param))) + k.dot(self.alpha);
-		#mean = k.dot(self.alpha);
 		v = cho_solve((self.L, True), k.T);
 		variance = self.kernel(x) - k.dot(v);
-		return mean, variance;
+		if return_variance is True:
+			return mean.T, variance;
+		else:
+			return mean.T;
 
 
 
@@ -177,60 +200,84 @@ B = [];
 Br= [];
 V = [];
 
+
 def basis_function(x):
 	# basis = np.ones((2, len(x)));
 	# for i in range(len(x)):
 	# 	basis[1, i] = np.sin(x[i]);
 	# return basis
-	return np.zeros((1, len(x) ));
+	return np.ones((1, len(x) ));
 
+
+fig, axs = plt.subplots(Nmod, sharex=True, gridspec_kw={'hspace':0})
+plt.title('Np '+str(Nobs), fontsize=FONTSIZE)
 
 for Nm in range(Nmod):
 	if Nm == 0: 
-		H.append(basis_function(Train_points[Nm]));
-		
-		start = time.time();
-		Mfs.append(GP(kernel));
-		Mfs[0].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), 1e-2, H[Nm]);
-		print(time.time()-start)
-
-		start = time.time();
-		gp_ref = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b', n_restarts_optimizer=gp_restart, alpha=1e-2, normalize_y=False);
-		gp_ref.fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1));
-		print(time.time()-start)
+		Mfs.append(GP(kernel, basis_function));
+		Mfs[Nm].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), 1e-2);
 
 	# 	J.append();
 	# 	B.append();
 	# else: 
 	# 	J.append();
 
+	else:
+		Mfs.append( GP(kernel, Mfs[Nm-1].predict) );
+		Mfs[Nm].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), 1e-2);
 
-print(gp_ref.kernel_)
-print(Mfs[0].kernel)
-print(Mfs[0].regression_param)
-print(np.mean(observations[0][:, 0]))
-yy, vv = Mfs[0].predict(xx.reshape(-1, 1), basis_function(xx)  ) 
-yy = yy.flatten();
-ss = np.sqrt(np.diag(vv))
 
+	print(Mfs[Nm].kernel)
+	print(Mfs[Nm].regression_param)
+
+
+	yy, vv = Mfs[Nm].predict(xx.reshape(-1, 1), return_variance= True  ) 
+	yy = yy.flatten();
+	ss = np.sqrt(np.diag(vv))
+
+	axs[Nm].scatter(Train_points[Nm], observations[Nm][:, 0])
+
+	axs[Nm].plot(xx, yy, color='r', label='GP')
+	axs[Nm].fill_between(xx, yy-ss, yy+ss, facecolor='r', alpha=0.3, interpolate=True)
+
+
+	axs[Nm].plot(xx, truth(xx), color='k', label='Truth')
+
+	axs[Nm].yaxis.set_major_formatter(plt.NullFormatter())
+	axs[Nm].set_ylabel('M ' + str(Nm+1), fontsize=FONTSIZE)
+
+axs[-1].set_xlabel('x', fontsize=FONTSIZE)
+fig.tight_layout()
+plt.savefig('FIGURES/mdl_table_' + str(Nobs) + '.pdf')
+
+
+gp_ref = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b', n_restarts_optimizer=gp_restart, alpha=1e-2, normalize_y=False);
+gp_ref.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1));
 oy, os = gp_ref.predict(xx.reshape(-1, 1), return_std=True)
 oy = oy.flatten();
 os = os.flatten();
 
+yy, vv = Mfs[-1].predict(xx.reshape(-1, 1), return_variance= True) 
+yy = yy.flatten();
+ss = np.sqrt(np.diag(vv))
+
 
 plt.figure()
-plt.scatter(Train_points[0], observations[0][:, 0])
+plt.title('Np '+str(Nobs), fontsize=FONTSIZE)
+plt.scatter(Train_points[-1], observations[-1][:, 0])
 
-plt.plot(xx, yy, color='r', label='GP')
+plt.plot(xx, truth(xx), color='k', label='Truth')
+
+plt.plot(xx, yy, color='r', label='M GP')
 plt.fill_between(xx, yy-ss, yy+ss, facecolor='r', alpha=0.3, interpolate=True)
-
-
-plt.plot(xx, oy, color='b', label='GP_old')
+plt.plot(xx, oy, color='b', label='GP')
 plt.fill_between(xx, oy-os, oy+os, facecolor='b', alpha=0.3, interpolate=True)
 
+plt.legend(prop={'size': FONTSIZE}, frameon=False)
 plt.xlabel('x', fontsize=FONTSIZE)
 plt.ylabel('y [-]', fontsize=FONTSIZE)
 plt.tight_layout()
+plt.savefig('FIGURES/general_cmp_' + str(Nobs) + '.pdf')
 
 plt.show()
 exit()
