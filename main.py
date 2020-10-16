@@ -97,13 +97,20 @@ class GP:
 			Basis = np.zeros((self.Nbasis, len(x)));
 		else:
 			Basis = [];
-			for i in range(self.Nbasis): Basis.append( self.basis_function[i](x).flatten() );
-			Basis = np.array(Basis);
+			Basis_v = [];
+			for i in range(self.Nbasis): 
+				a = self.basis_function[i](x, True)
+				#print(np.shape(a[0]))
+				Basis.append(   a[0].flatten() );
+				Basis_v.append( np.diag(a[1]).flatten() );
+			Basis   = np.array(Basis);
+			Basis_v = np.array(Basis_v);
 
 		k = self.kernel(x, self.Training_points);
 		mean = np.array(Basis.T.dot(np.array(self.regression_param))) + k.dot(self.alpha);
 		v = cho_solve((self.L, True), k.T);
-		variance = self.kernel(x) - k.dot(v);
+		variance = self.kernel(x) - k.dot(v) + np.square(self.regression_param.T).dot(np.square(Basis_v));
+
 		if return_variance is True:
 			return mean.T, variance;
 		else:
@@ -191,12 +198,18 @@ for nn in range(len(Nobs_array)):
 	Mfs = [];
 
 
-	def basis_function(x):
+	def basis_function(x, return_variance= False):
 		# basis = np.ones((2, len(x)));
 		# for i in range(len(x)):
 		# 	basis[1, i] = np.sin(x[i]);
 		# return basis
-		return np.ones((1, len(x) ));
+		
+		if return_variance is True:
+			return np.ones((1, len(x) )), np.zeros((len(x), len(x) ));
+		else:
+			return np.ones((1, len(x) ));
+
+
 
 	inner = gridspec.GridSpecFromSubplotSpec(Nmod, 1, subplot_spec= outer[2*nn], wspace=0.1, hspace=0.1)
 	
