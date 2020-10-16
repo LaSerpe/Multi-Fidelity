@@ -140,7 +140,24 @@ Np = 1000;
 xx = np.linspace(x_min, x_max, Np);
 
 # Define the models
-Nmod = 3; #thruth doesn't count
+# Nmod = 3; #truth doesn't count
+
+# def truth(x):
+# 	return np.sin(x/x_max*pi*8)*x + x;
+
+# def model_1(x):
+# 	return [x, 1e-8*np.random.normal(0.0, 1.0)];
+
+# def model_2(x):
+# 	return [0.7*(np.sin(x/x_max*pi*8)*x + 0.0), 1e-8*np.random.normal(0.0, 1.0)];
+
+# def model_3(x):
+# 	return [np.sin(x/x_max*pi*8)*x + x, 2e-8*np.random.normal(0.0, 1.0)];
+
+# models = [model_1, model_2, model_3];
+
+
+Nmod = 4; #truth doesn't count
 
 def truth(x):
 	return np.sin(x/x_max*pi*8)*x + x;
@@ -152,21 +169,32 @@ def model_2(x):
 	return [0.7*(np.sin(x/x_max*pi*8)*x + 0.0), 1e-8*np.random.normal(0.0, 1.0)];
 
 def model_3(x):
+	# a = 1.0;
+	# return [a*x/x**(a+1) - x**2, 2e-8*np.random.normal(0.0, 1.0)];
+	return [-5.0*x + 1.0, 2e-8*np.random.normal(0.0, 1.0)];
+
+def model_4(x):
 	return [np.sin(x/x_max*pi*8)*x + x, 2e-8*np.random.normal(0.0, 1.0)];
 
+models = [model_1, model_2, model_3, model_4];
 
 
-models = [model_1, model_2, model_3];
+gp_restart = 10;
+kernel = ConstantKernel(1.0**2, (3.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, length_scale_bounds=(1.0e-2, 1.0e1)) \
++ WhiteKernel(noise_level=1.0e-2, noise_level_bounds=(1.0e-6, 1.0e-0));
 
 
 
 
 
-Nobs_array = [ 2, 4, 6 ];
-Nobs_array = [ 5, 15, 20 ];
 
-fig_frame = plt.figure(figsize=(10, 8))
-outer = gridspec.GridSpec( len(Nobs_array), 2, wspace= 0.1, hspace= 0.2 )
+Nobs_array = [ 3, 6, 9 ];
+#Nobs_array = [ 4, 8, 16 ];
+#Nobs_array = [ 5, 15, 20 ];
+
+N_columns = 3;
+fig_frame = plt.figure(figsize=(14, 8))
+outer = gridspec.GridSpec( len(Nobs_array), N_columns, wspace= 0.2, hspace= 0.2 )
 
 for nn in range(len(Nobs_array)):
 	Nobs = Nobs_array[nn];
@@ -174,11 +202,11 @@ for nn in range(len(Nobs_array)):
 	print("Number of observations " + str(Nobs));
 	print("Generating synthetic data")
 
-	Nobs_model   = [Nobs for i in range(Nmod)];
-	Train_points = [RandomDataGenerator.uniform(x_min, x_max, Nobs) for i in range(Nmod)];
+	#Nobs_model   = [Nobs for i in range(Nmod)];
+	#Train_points = [RandomDataGenerator.uniform(x_min, x_max, Nobs) for i in range(Nmod)];
 
-	#Nobs_model   = [(Nmod - i)*Nobs for i in range(Nmod)];
-	#Train_points = [np.random.uniform(x_min, x_max, Nobs_model[i]) for i in range(Nmod)];
+	Nobs_model   = [(Nmod - i)*Nobs for i in range(Nmod)];
+	Train_points = [RandomDataGenerator.uniform(x_min, x_max, Nobs_model[i]) for i in range(Nmod)];
 	
 
 	observations = [];
@@ -191,9 +219,6 @@ for nn in range(len(Nobs_array)):
 		observations[i] = np.array(observations[i]);
 
 
-	gp_restart = 10;
-	kernel = ConstantKernel(1.0**2, (3.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, length_scale_bounds=(1.0e-2, 1.0e1)) \
-	+ WhiteKernel(noise_level=1.0e-2, noise_level_bounds=(1.0e-6, 1.0e-0));
 
 	Mfs = [];
 
@@ -211,19 +236,26 @@ for nn in range(len(Nobs_array)):
 
 
 
-	inner = gridspec.GridSpecFromSubplotSpec(Nmod, 1, subplot_spec= outer[2*nn], wspace=0.1, hspace=0.1)
+	inner = gridspec.GridSpecFromSubplotSpec(Nmod, 1, subplot_spec= outer[N_columns*nn], wspace=0.1, hspace=0.1)
 	
 
 	for Nm in range(Nmod):
+
+		#if Nm == 2: Mfs.append( Mfs[Nm-1] ); continue;
 
 		if Nm == 0: 
 			Mfs.append(GP(kernel, [basis_function]));
 			Mfs[Nm].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), 1e-2);
 		else:
-			Mfs.append( GP(kernel, [Mfs[i].predict for i in range(Nm)]) );
+			if Nm == 3:
+				Mfs.append( GP(kernel, [Mfs[i].predict for i in range(Nm-1)]) );
+			else:
+				Mfs.append( GP(kernel, [Mfs[i].predict for i in range(Nm)]) );
 			#Mfs.append( GP(kernel, [Mfs[Nm-1].predict for i in range(1)]) );
 			Mfs[Nm].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), 1e-2);
 			
+
+		if Nm == 2: continue;
 		print(Mfs[Nm].kernel)
 		print(Mfs[Nm].regression_param)
 
@@ -247,7 +279,7 @@ for nn in range(len(Nobs_array)):
 
 	ax.set_xlabel('x', fontsize=FONTSIZE)
 	#ax.tight_layout()
-	plt.savefig('FIGURES/mdl_table_' + str(Nobs) + '.pdf')
+	#plt.savefig('FIGURES/mdl_table_' + str(Nobs) + '.pdf')
 
 
 	gp_ref = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b', n_restarts_optimizer=gp_restart, alpha=1e-2, normalize_y=False);
@@ -261,7 +293,7 @@ for nn in range(len(Nobs_array)):
 	ss = np.sqrt(np.diag(vv))
 
 
-	inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec= outer[2*nn+1], wspace=0.1, hspace=0.1)
+	inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec= outer[N_columns*nn+1], wspace=0.1, hspace=0.1)
 	ax = plt.Subplot(fig_frame, inner[0])
 
 	ax.scatter(Train_points[-1], observations[-1][:, 0])
@@ -280,7 +312,22 @@ for nn in range(len(Nobs_array)):
 	#ax.xlabel('x', fontsize=FONTSIZE)
 	#ax.ylabel('y [-]', fontsize=FONTSIZE)
 	#ax.tight_layout()
-	plt.savefig('FIGURES/general_cmp_' + str(Nobs) + '.pdf')
+	#plt.savefig('FIGURES/general_cmp_' + str(Nobs) + '.pdf')
+
+
+	inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec= outer[N_columns*nn+2], wspace=0.1, hspace=0.3)
+	ax = plt.Subplot(fig_frame, inner[0])
+
+	cell_text = []
+	for i in range(Nmod):
+		ax.barh(np.arange(len(Mfs[Nm].regression_param)), Mfs[Nm].regression_param.flatten(), 0.2, tick_label=["M " + str(j+1) for j in range(len(Mfs[Nm].regression_param))])
+		cell_text.append(['{:.2e}'.format(j) for j in np.exp(Mfs[Nm].kernel.theta)])
+
+	#the_table = ax.table(cellText=cell_text, rowLabels=["std", "$\mathcal{l}$", "$\sigma_n$"], colLabels=["M " + str(j+1) for j in range(Nmod)], loc='bottom')
+		
+	ax.legend(frameon=False)
+	fig_frame.add_subplot(ax)
+
 
 	print()
 
