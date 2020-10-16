@@ -24,48 +24,15 @@ from math import pi
 import database as database
 
 
-# N = 50000;
-# a = np.random.uniform(0,  1, N)
-# b = np.random.uniform(0, 10, N)
-
-# stda = 1/12;
-# stdb = 10/12;
-
-# mean_a = np.zeros((N, 1));
-# mean_b = np.zeros((N, 1));
-# std_a = np.zeros((N, 1));
-# std_b = np.zeros((N, 1));
-# for i in range(N):
-# 	mean_a[i] = np.sum(a[0:i])/i;
-# 	mean_b[i] = np.sum(b[0:i])/i;
-# 	std_a[i] = np.sqrt((mean_a[i]-0.5)**2);
-# 	std_b[i] = np.sqrt((mean_b[i]-5.0)**2);
-
-
-# plt.figure()
-# plt.plot(mean_a, color='r', label='0.5')
-# plt.plot(mean_b, color='b', label='5.0')
-# plt.tight_layout()
-
-# plt.figure()
-# plt.semilogy(std_a, color='r', label='0.5')
-# plt.semilogy(stda/np.sqrt(np.arange(N)+1), ':', color='r')
-
-# plt.semilogy(std_b, color='b', label='5.0')
-# plt.semilogy(stdb/np.sqrt(np.arange(N)+1), ':', color='b')
-# plt.tight_layout()
-
-# plt.show()
-# exit()
-
-
 class GP:
 	def __init__(self, Kernel, Basis= None):
 		self.kernel = copy.deepcopy(Kernel);
 		if Basis is None: 
 			self.basis_function = None;
+			self.Nbasis= 0;
 		else:
 			self.basis_function = copy.deepcopy(Basis);
+			self.Nbasis= len(Basis);
 
 
 	def loglikelihood(self):
@@ -85,26 +52,28 @@ class GP:
 
 	def fit(self, Training_points, Training_values, noise_level):
 
-		self.noise_level = noise_level;
-		self.Training_points = Training_points[:];
-		self.Training_values = Training_values[:];
+		self.noise_level = copy.deepcopy(noise_level);
+		self.Training_points = copy.deepcopy(Training_points);
+		self.Training_values = copy.deepcopy(Training_values);
 
 		MIN = 1e16;
 		bounds = self.kernel.bounds
 
 		if self.basis_function is None: 
-			self.basis = np.ones((1, len(self.Training_points)))
+			self.Nbasis = 1;
+			self.basis = np.ones((self.Nbasis, len(self.Training_points)))
 			self.regression_param = np.zeros((1, 1));
 		else:
-			self.basis = self.basis_function(self.Training_points);
+			self.basis = [];
+			for i in range(self.Nbasis): self.basis.append( self.basis_function[i](self.Training_points).flatten() );
+			self.basis = np.array(self.basis);
 			self.regression_param = np.ones((np.shape(self.basis)[0], 1));
 			for i in self.regression_param: bounds = np.append(bounds, [[-10.0, 10.0]], axis=0)
-			# print(np.shape(bounds))
-			# print(type(bounds))
-			# print(bounds)
+
 
 		for int_it in range(10):
-			x0 = np.random.uniform(bounds[:, 0], bounds[:, 1]);
+			InternalRandomGenerator = np.random.RandomState();
+			x0 = InternalRandomGenerator.uniform(bounds[:, 0], bounds[:, 1]);
 			res = sp.optimize.minimize(self.cost_function, x0, method="L-BFGS-B", bounds=bounds)
 			if (self.cost_function(res.x)[0] < MIN):
 				MIN = self.cost_function(res.x)
@@ -119,15 +88,17 @@ class GP:
 		Ktt = self.kernel(self.Training_points);
 		Ktt[np.diag_indices_from(Ktt)] += self.noise_level;
 		self.L = cholesky(Ktt, lower=True);
-		self.alpha = cho_solve((self.L, True), (Training_values - np.array(self.basis.T.dot(self.regression_param)) ))
+		self.alpha = cho_solve((self.L, True), (self.Training_values - np.array(self.basis.T.dot(self.regression_param)) ))
 
 
 
 	def predict(self, x, return_variance= False):
 		if self.basis_function is None: 
-			Basis = np.zeros((1, len(x)));
+			Basis = np.zeros((self.Nbasis, len(x)));
 		else:
-			Basis = self.basis_function(x);
+			Basis = [];
+			for i in range(self.Nbasis): Basis.append( self.basis_function[i](x).flatten() );
+			Basis = np.array(Basis);
 
 		k = self.kernel(x, self.Training_points);
 		mean = np.array(Basis.T.dot(np.array(self.regression_param))) + k.dot(self.alpha);
@@ -147,8 +118,9 @@ class GP:
 
 plt.rc('font',family='Times New Roman')
 
+RandomDataGenerator = np.random.RandomState();
+RandomDataGenerator.seed(1);
 
-np.random.seed(1)
 
 col = ['r', 'b', 'm'];
 FONTSIZE = 22
@@ -162,19 +134,6 @@ xx = np.linspace(x_min, x_max, Np);
 
 # Define the models
 Nmod = 3; #thruth doesn't count
-
-# def truth(x):
-# 	return np.sin(x/x_max*pi/2);
-
-# def model_1(x):
-# 	return [x, 1e-8*np.random.normal(0.0, 1.0)];
-
-# def model_2(x):
-# 	return [-x**2 + 2.0*x, 1e-8*np.random.normal(0.0, 1.0)];
-
-# def model_3(x):
-# 	return [np.sin(x/x_max*pi/2) + 0.02, 1e-8*np.random.normal(0.0, 1.0)];
-
 
 def truth(x):
 	return np.sin(x/x_max*pi*8)*x + x;
@@ -196,78 +155,33 @@ models = [model_1, model_2, model_3];
 
 
 
-# Nobs_array = [ 5 , 15, 20 ];
+Nobs_array = [ 2, 4, 6 ];
+Nobs_array = [ 5, 15, 20 ];
 
-# fig_frame = plt.figure(figsize=(10, 8))
-# outer = gridspec.GridSpec( len(Nobs_array), 2, wspace= 0.1, hspace= 0.2 )
-
-# for nn in range(len(Nobs_array)):
-# 	Nobs = Nobs_array[nn];
-
-# 	print("Number of observations " + str(Nobs));
-
-# 	# observations
-# 	fx = np.random.uniform(x_min, x_max, Nobs) # this can change for datasets of different size
-
-# 	Train_points = [np.random.uniform(x_min, x_max, Nobs) for i in range(Nmod)];
-# 	Nobs_model   = [Nobs for i in range(Nmod)];
-
-# 	observations = [];
-# 	for i in range(Nmod):
-# 		observations.append([]);
-# 		for j in range(Nobs_model[i]):
-# 			observations[i].append(models[i](Train_points[i][j]));
-
-
-# 	Train_points = np.array(Train_points);
-# 	observations = np.array(observations);
-
-# 	print(np.shape(Train_points))
-# 	print(np.shape(observations))
-
-
-	# plt.figure()
-	# plt.plot(xx, truth(xx), color='k', label='Truth')
-	# for i in range(Nmod):
-	# 	plt.plot(xx, models[i](xx)[0], color=col[i], label='Model ' + str(i+1))
-	# 	plt.errorbar(Train_points[i], observations[i][:, 0], yerr=observations[i][:, 1], color=col[i], fmt='.r')
-	# plt.legend(prop={'size': FONTSIZE-10}, frameon=False, loc='lower right')
-	# plt.xlabel('x', fontsize=FONTSIZE)
-	# plt.ylabel('y [-]', fontsize=FONTSIZE)
-	# plt.tight_layout()
-
-
-
-# Here is for the dataase
-x_min = 0.0;
-x_max = 24.0;
-
-Np = 1000;
-xx = np.linspace(x_min, x_max, Np);
 fig_frame = plt.figure(figsize=(10, 8))
-outer = gridspec.GridSpec( 1, 2, wspace= 0.1, hspace= 0.2 )
+outer = gridspec.GridSpec( len(Nobs_array), 2, wspace= 0.1, hspace= 0.2 )
 
-data_numbers = [0, 2, 4, 5, 6];
-for nn in range(1):
-	
-	observations = [];
-	Train_points = [];
-	Truth = [];
-	for i in data_numbers:
-		Train_points.append(database.access_data(i)[:, 0]);
-		observations.append([]);
-		for j in range( len(Train_points[-1]) ):
-			observations[-1].append( [database.access_data(i)[j][1], database.access_data(i)[j][2] ] );
+for nn in range(len(Nobs_array)):
+	Nobs = Nobs_array[nn];
 
-	Nmod = len(data_numbers)		
-	Nobs = len(Train_points[0][:]);
+	print("Number of observations " + str(Nobs));
+	print("Generating synthetic data")
+
 	Nobs_model   = [Nobs for i in range(Nmod)];
-	Train_points = np.array(Train_points);
-	observations = np.array(observations);
+	Train_points = [RandomDataGenerator.uniform(x_min, x_max, Nobs) for i in range(Nmod)];
 
-	print(np.shape(Train_points))
-	print(np.shape(observations))
+	#Nobs_model   = [(Nmod - i)*Nobs for i in range(Nmod)];
+	#Train_points = [np.random.uniform(x_min, x_max, Nobs_model[i]) for i in range(Nmod)];
+	
 
+	observations = [];
+	for i in range(Nmod):
+		observations.append([]);
+		for j in range(Nobs_model[i]):
+			observations[i].append(models[i](Train_points[i][j]));
+
+	for i in range(Nmod):
+		observations[i] = np.array(observations[i]);
 
 
 	gp_restart = 10;
@@ -288,23 +202,17 @@ for nn in range(1):
 	
 
 	for Nm in range(Nmod):
+
 		if Nm == 0: 
-			Mfs.append(GP(kernel, basis_function));
+			Mfs.append(GP(kernel, [basis_function]));
 			Mfs[Nm].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), 1e-2);
-
-		# 	J.append();
-		# 	B.append();
-		# else: 
-		# 	J.append();
-
 		else:
-			Mfs.append( GP(kernel, Mfs[Nm-1].predict) );
+			Mfs.append( GP(kernel, [Mfs[i].predict for i in range(Nm)]) );
+			#Mfs.append( GP(kernel, [Mfs[Nm-1].predict for i in range(1)]) );
 			Mfs[Nm].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), 1e-2);
-
-
+			
 		print(Mfs[Nm].kernel)
 		print(Mfs[Nm].regression_param)
-
 
 		yy, vv = Mfs[Nm].predict(xx.reshape(-1, 1), return_variance= True  ) 
 		yy = yy.flatten();
@@ -318,15 +226,15 @@ for nn in range(1):
 		ax.fill_between(xx, yy-ss, yy+ss, facecolor='r', alpha=0.3, interpolate=True)
 
 
-		#ax.plot(xx, truth(xx), color='k', label='Truth')
+		ax.plot(xx, truth(xx), color='k', label='Truth')
 
 		ax.yaxis.set_major_formatter(plt.NullFormatter())
 		ax.set_ylabel('M ' + str(Nm+1))
 		fig_frame.add_subplot(ax)
 
-	#ax.set_xlabel('x', fontsize=FONTSIZE)
+	ax.set_xlabel('x', fontsize=FONTSIZE)
 	#ax.tight_layout()
-	#plt.savefig('FIGURES/mdl_table_' + str(Nobs) + '.pdf')
+	plt.savefig('FIGURES/mdl_table_' + str(Nobs) + '.pdf')
 
 
 	gp_ref = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b', n_restarts_optimizer=gp_restart, alpha=1e-2, normalize_y=False);
@@ -345,22 +253,23 @@ for nn in range(1):
 
 	ax.scatter(Train_points[-1], observations[-1][:, 0])
 
-	#ax.plot(xx, truth(xx), color='k', label='Truth')
+	ax.plot(xx, truth(xx), color='k', label='Truth')
 
 	ax.plot(xx, yy, color='r', label='M GP')
 	ax.fill_between(xx, yy-ss, yy+ss, facecolor='r', alpha=0.3, interpolate=True)
 	ax.plot(xx, oy, color='b', label='GP')
 	ax.fill_between(xx, oy-os, oy+os, facecolor='b', alpha=0.3, interpolate=True)
 
-	#ax.legend(prop={'size': FONTSIZE}, frameon=False)
+	ax.legend(prop={'size': FONTSIZE}, frameon=False)
 	ax.legend(frameon=False)
 	fig_frame.add_subplot(ax)
 
 	#ax.xlabel('x', fontsize=FONTSIZE)
 	#ax.ylabel('y [-]', fontsize=FONTSIZE)
 	#ax.tight_layout()
-	#plt.savefig('FIGURES/general_cmp_' + str(Nobs) + '.pdf')
+	plt.savefig('FIGURES/general_cmp_' + str(Nobs) + '.pdf')
 
+	print()
 
 
 fig_frame.tight_layout()
