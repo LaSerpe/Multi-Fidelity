@@ -28,7 +28,11 @@ class GP:
 		if (len(self.kernel.theta) != len(theta)):
 			self.regression_param = np.array(theta[len(self.kernel.theta)::]).reshape(-1, 1);
 		K = self.kernel(self.Training_points);
-		K[np.diag_indices_from(K)] += self.noise_level
+		if type(self.noise_level) is float:
+			K[np.diag_indices_from(K)] += self.noise_level;
+		else:
+			for i in range(len(self.noise_level)): K[i, i] += self.noise_level[i];
+		
 		self.L = cholesky(K, lower=True);
 		self.alpha = cho_solve((self.L, True), (self.Training_values - self.basis.T.dot(self.regression_param) ) )
 		return self.loglikelihood();
@@ -70,7 +74,10 @@ class GP:
 			self.regression_param = MIN_x[len(self.kernel.theta)::].reshape(-1, 1);
 
 		Ktt = self.kernel(self.Training_points);
-		Ktt[np.diag_indices_from(Ktt)] += self.noise_level;
+		if type(self.noise_level) is float:
+			Ktt[np.diag_indices_from(Ktt)] += self.noise_level;
+		else:
+			for i in range(len(self.noise_level)): Ktt[i, i] += self.noise_level[i];
 		self.L = cholesky(Ktt, lower=True);
 		self.alpha = cho_solve((self.L, True), (self.Training_values - np.array(self.basis.T.dot(self.regression_param)) ))
 

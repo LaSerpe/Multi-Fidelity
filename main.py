@@ -26,7 +26,19 @@ from GP_module import GP
 from models_module import *
 
 
-
+def basis_function(x, return_variance= False):
+	# basis = np.ones((1, len(x)));
+	# for i in range(len(x)):
+	# 	basis[0][i] = x[i] + x[i]*np.sin(x[i]);
+	# if return_variance is True:
+	# 	return basis, np.zeros(( len(x), len(x) ));
+	# else:
+	# 	return basis;
+	
+	if return_variance is True:
+		return np.ones((1, len(x) )), np.zeros((len(x), len(x) ));
+	else:
+		return np.ones((1, len(x) ));
 
 plt.rc('font',family='Times New Roman')
 
@@ -70,13 +82,9 @@ for nn in range(len(Nobs_array)):
 	print("Number of observations " + str(Nobs));
 	print("Generating synthetic data")
 
-	#Nobs_model   = [Nobs for i in range(Nmod)];
-	#Train_points = [RandomDataGenerator.uniform(x_min, x_max, Nobs) for i in range(Nmod)];
-
 	Nobs_model   = [(Nmod - i)*Nobs for i in range(Nmod)];
 	Train_points = [RandomDataGenerator.uniform(x_min, x_max, Nobs_model[i]) for i in range(Nmod)];
 	
-
 	observations = [];
 	for i in range(Nmod):
 		observations.append([]);
@@ -86,30 +94,9 @@ for nn in range(len(Nobs_array)):
 	for i in range(Nmod):
 		observations[i] = np.array(observations[i]);
 
-
-	# np.hstack([i for i in Train_points]).reshape(-1, 1)
-	# np.hstack([i[:, 0] for i in observations]).reshape(-1, 1)
-	# print(np.hstack([i for i in Train_points]).reshape(-1, 1))
-	# print(np.hstack([i[:, 0] for i in observations]).reshape(-1, 1))
-	# exit()
-
 	Mfs = [];
-	Mfs_No_basis = [];
 
 
-	def basis_function(x, return_variance= False):
-		# basis = np.ones((1, len(x)));
-		# for i in range(len(x)):
-		# 	basis[0][i] = x[i] + x[i]*np.sin(x[i]);
-		# if return_variance is True:
-		# 	return basis, np.zeros(( len(x), len(x) ));
-		# else:
-		# 	return basis;
-		
-		if return_variance is True:
-			return np.ones((1, len(x) )), np.zeros((len(x), len(x) ));
-		else:
-			return np.ones((1, len(x) ));
 
 
 
@@ -131,10 +118,6 @@ for nn in range(len(Nobs_array)):
 			Mfs.append( GP(kernel, [Mfs[i].predict for i in range(Nm)]) );
 			#Mfs.append( GP(kernel, [Mfs[Nm-1].predict for i in range(1)]) );
 			Mfs[Nm].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), 1e-2);
-			
-		Mfs_No_basis.append( GP(kernel));
-		Mfs_No_basis[Nm].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), 1e-2);
-
 
 		#if Nm == 2: continue;
 		print(Mfs[Nm].kernel)
@@ -216,60 +199,6 @@ for nn in range(len(Nobs_array)):
 fig_frame.tight_layout()
 plt.savefig('FIGURES/cmp.pdf')
 
-
-
-
-
-
-
-#### This combines all GPs to predict all data
-
-Mfs_total = GP(kernel, [Mfs_No_basis[i].predict for i in range(Nmod)]);
-Mfs_total.fit(np.hstack([i for i in Train_points]).reshape(-1, 1), np.hstack([i[:, 0] for i in observations]).reshape(-1, 1), 1e-2);
-
-print(Mfs_total.kernel)
-print(Mfs_total.regression_param)
-
-
-gp_ref = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b', n_restarts_optimizer=gp_restart, alpha=1e-2, normalize_y=False);
-gp_ref.fit(np.hstack([i for i in Train_points]).reshape(-1, 1), np.hstack([i[:, 0] for i in observations]).reshape(-1, 1));
-oy, os = gp_ref.predict(xx.reshape(-1, 1), return_std=True)
-oy = oy.flatten();
-os = os.flatten();
-
-
-
-fig, axs = plt.subplots(3, gridspec_kw={'hspace':0})
-
-for i in range(Nmod):
-	yy, vv = Mfs[i].predict(xx.reshape(-1, 1), return_variance= True) 
-	yy = yy.flatten();
-	ss = np.sqrt(np.diag(vv))
-	axs[0].plot(xx, yy, color='r', label='M GP')
-	axs[0].fill_between(xx, yy-ss, yy+ss, facecolor='r', alpha=0.3, interpolate=True)
-
-
-
-yy, vv = Mfs_total.predict(xx.reshape(-1, 1), return_variance= True) 
-yy = yy.flatten();
-ss = np.sqrt(np.diag(vv))
-
-
-axs[1].plot(xx, truth(xx), color='k', label='Truth')
-axs[1].plot(xx, yy, color='r', label='M GP')
-axs[1].fill_between(xx, yy-ss, yy+ss, facecolor='r', alpha=0.3, interpolate=True)
-axs[1].plot(xx, oy, color='b', label='GP')
-axs[1].fill_between(xx, oy-os, oy+os, facecolor='b', alpha=0.3, interpolate=True)
-axs[1].scatter(np.hstack([i for i in Train_points]).reshape(-1, 1), np.hstack([i[:, 0] for i in observations]).reshape(-1, 1));
-axs[1].legend(prop={'size': FONTSIZE-10}, frameon=False)
-
-axs[2].barh(np.arange(len(Mfs_total.regression_param)), Mfs_total.regression_param.flatten(), 0.2, tick_label=["M " + str(j+1) for j in range(len(Mfs_total.regression_param))])
-
-
-
-
-fig.tight_layout()
-#plt.savefig('design_history_' + CASE + '_noinit.pdf')
 
 
 
