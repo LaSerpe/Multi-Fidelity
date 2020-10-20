@@ -1,7 +1,7 @@
 import numpy as np
 import scipy as sp
 from scipy.linalg import cholesky, cho_solve, solve_triangular
-
+import math
 import copy
 
 #from sklearn.gaussian_process.kernels import RBF, Matern, RationalQuadratic,ExpSineSquared, DotProduct, ConstantKernel, WhiteKernel
@@ -22,6 +22,18 @@ class GP:
 	def loglikelihood(self):
 		return np.array(0.5*(self.Training_values - self.basis.T.dot(self.regression_param) ).T.dot(self.alpha) + np.log(np.diag(self.L)).sum()).flatten();
 
+	def compute_loglikelihood(self, x, y):
+		if self.basis_function is None: 
+			Basis = np.zeros((self.Nbasis, len(x)));
+		else:
+			Basis = [];
+			for i in range(self.Nbasis): Basis.append( self.basis_function[i](x).flatten() );
+			Basis = np.array(Basis);
+		K = self.kernel(x);
+		if type(self.noise_level) is float: K[np.diag_indices_from(K)] += self.noise_level;
+		L = cholesky(K, lower=True); 
+		alpha = cho_solve((L, True), (y - Basis.T.dot(self.regression_param) ) )
+		return - np.array(0.5*(y - Basis.T.dot(self.regression_param) ).T.dot(alpha) - np.log(np.diag(L)).sum()).flatten() - 0.5*len(x)*np.log(2*math.pi);
 
 	def cost_function(self, theta):
 		self.kernel.theta = theta[0:len(self.kernel.theta)];
@@ -33,7 +45,7 @@ class GP:
 		else:
 			for i in range(len(self.noise_level)): K[i, i] += self.noise_level[i];
 		
-		self.L = cholesky(K, lower=True);
+		self.L = cholesky(K, lower=True); 
 		self.alpha = cho_solve((self.L, True), (self.Training_values - self.basis.T.dot(self.regression_param) ) )
 		return self.loglikelihood();
 
@@ -108,6 +120,17 @@ class GP:
 		else:
 			return mean.T;
 
+
+	def score(self, x, y, sample_weight=None):
+		return 1 - ((y - self.predict(x).T)**2).sum() / ((y - y.mean())**2).sum()
+
+
+	def Qcriteria(self, x, y, eps=0.01):
+		y_gp, sigma_gp = self.predict(x, return_variance= True);
+		y_gp = y_gp.flatten();
+		sigma_gp = np.sqrt(np.diag(sigma_gp))
+
+		return np.absolute( 0.5*sp.special.erf( np.divide((y - y_gp) , (np.sqrt(2)*(sigma_gp+eps) )) ) ).sum()
 
 
 

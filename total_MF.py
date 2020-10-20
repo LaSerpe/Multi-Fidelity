@@ -125,12 +125,15 @@ Mfs_total.fit(Total_Training_Points, Total_Observations, 1e-2);
 
 print(Mfs_total.kernel)
 print(Mfs_total.regression_param)
+print(Mfs_total.compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
+print("Score: ", Mfs_total.score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
 
 
 #gp_ref = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b', n_restarts_optimizer=gp_restart, alpha=Total_Noise.flatten(), normalize_y=False);
 gp_ref = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b', n_restarts_optimizer=gp_restart, alpha=1e-2, normalize_y=False);
 gp_ref.fit(Total_Training_Points, Total_Observations);
 print(gp_ref.kernel_)
+print("Score: ", gp_ref.score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
 oy, os = gp_ref.predict(xx.reshape(-1, 1), return_std=True)
 oy = oy.flatten();
 os = os.flatten();
