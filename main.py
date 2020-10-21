@@ -146,7 +146,7 @@ for nn in range(len(Nobs_array)):
 
 	print("Score MF: ", Mfs[-1].score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
 	print("Log L MF: ", Mfs[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
-	print("Qcrit MF: ", Mfs[-1].Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
+	print("Qcrit MF: ", Mfs[-1].Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() )
 	print(Mfs[-1].kernel)
 	print(Mfs[-1].regression_param)
 
@@ -163,7 +163,7 @@ for nn in range(len(Nobs_array)):
 
 	print("Score SF: ", GP_single.score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
 	print("Log L SF: ", GP_single.compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
-	print("Qcrit SF: ", GP_single.Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
+	print("Qcrit SF: ", GP_single.Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() )
 	print(GP_single.kernel)
 	print(GP_single.regression_param)
 
@@ -224,13 +224,13 @@ plt.savefig('FIGURES/cmp.pdf')
 
 print("Score MF: ", Mfs[-1].score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
 print("Log L MF: ", Mfs[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
-print("Qcrit MbF: ", Mfs[-1].Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
+print("Qcrit MbF: ", Mfs[-1].Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() )
 
 Mfs_Nno_Basis = GP(kernel);
 Mfs_Nno_Basis.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1), 1e-2);
 print("Score SF: ", Mfs_Nno_Basis.score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
 print("Log L SF: ", Mfs_Nno_Basis.compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
-print("Qcrit SF: ", Mfs_Nno_Basis.Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
+print("Qcrit SF: ", Mfs_Nno_Basis.Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() )
 
 plt.figure()
 plt.plot(xx, truth(xx), color='k', label='Truth')
@@ -240,12 +240,16 @@ yy = yy.flatten();
 ss = np.sqrt(np.diag(vv))
 plt.plot(xx, yy, color='r', label='M GP')
 plt.fill_between(xx, yy-ss, yy+ss, facecolor='r', alpha=0.3, interpolate=True)
+a = Mfs[-1].Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1))
+plt.plot(xx, a/a.max(), ':', color='r', label='M GP Q')
 
 yy, vv = Mfs_Nno_Basis.predict(xx.reshape(-1, 1), return_variance= True) 
 yy = yy.flatten();
 ss = np.sqrt(np.diag(vv))
 plt.plot(xx, yy, color='b', label='STD GP')
 plt.fill_between(xx, yy-ss, yy+ss, facecolor='b', alpha=0.3, interpolate=True)
+b = Mfs_Nno_Basis.Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1))
+plt.plot(xx, b/a.max(), ':', color='b', label='STD GP Q')
 
 plt.legend(prop={'size': FONTSIZE}, frameon=False)
 plt.legend(frameon=False)

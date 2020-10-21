@@ -125,12 +125,12 @@ class GP:
 		return 1 - ((y - self.predict(x).T)**2).sum() / ((y - y.mean())**2).sum()
 
 
-	def Qcriteria(self, x, y, eps=0.01):
+	def Qcriteria(self, x, y, eps=0.00):
 		y_gp, sigma_gp = self.predict(x, return_variance= True);
-		y_gp = y_gp.flatten();
-		sigma_gp = np.sqrt(np.diag(sigma_gp))
+		y_gp = y_gp.reshape(-1, 1);
+		sigma_gp = np.sqrt(np.diag(sigma_gp)).reshape(-1, 1)
 
-		return np.absolute( 0.5*sp.special.erf( np.divide((y - y_gp) , (np.sqrt(2)*(sigma_gp+eps) )) ) ).sum()
-
+		return np.absolute( 0.5*sp.special.erf( np.divide((y - y_gp) , (np.sqrt(2)*(sigma_gp+eps) )) ) ) * ( np.absolute(y - y_gp) * sigma_gp)
+		#return np.absolute( 0.5*sp.special.erf( np.divide((y - y_gp) , (np.sqrt(2)*(sigma_gp+eps) )) ) ) * np.absolute(y - y_gp) / sigma_gp ;
 
 
