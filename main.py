@@ -60,6 +60,7 @@ xx = np.linspace(x_min, x_max, Np);
 models = [model_1, model_2, model_3, model_4];
 Nmod = len(models);
 
+Tychonov_regularization_coeff= 1e-4;
 
 gp_restart = 10;
 kernel = ConstantKernel(1.0**2, (3.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, length_scale_bounds=(1.0e-2, 1.0e1)) \
@@ -105,7 +106,7 @@ for nn in range(len(Nobs_array)):
 
 		if Nm == 0: 
 			Mfs.append(GP(kernel, [basis_function]));
-			Mfs[Nm].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), 1e-2);
+			Mfs[Nm].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
 		else:
 			# if Nm == 3:
 			# 	Mfs.append( GP(kernel, [Mfs[i].predict for i in range(Nm-1)]) );
@@ -113,7 +114,7 @@ for nn in range(len(Nobs_array)):
 			# 	Mfs.append( GP(kernel, [Mfs[i].predict for i in range(Nm)]) );
 			Mfs.append( GP(kernel, [Mfs[i].predict for i in range(Nm)]) );
 			#Mfs.append( GP(kernel, [Mfs[Nm-1].predict for i in range(1)]) );
-			Mfs[Nm].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), 1e-2);
+			Mfs[Nm].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
 
 
 		#if Nm == 2: continue;
@@ -155,7 +156,7 @@ for nn in range(len(Nobs_array)):
 	ss = np.sqrt(np.diag(vv))
 
 	GP_single = GP(kernel);
-	GP_single.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1), 1e-2);
+	GP_single.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
 
 	yy_s, vv_s = GP_single.predict(xx.reshape(-1, 1), return_variance= True) 
 	yy_s = yy_s.flatten();
@@ -167,7 +168,7 @@ for nn in range(len(Nobs_array)):
 	print(GP_single.kernel)
 	print(GP_single.regression_param)
 
-	gp_ref = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b', n_restarts_optimizer=gp_restart, alpha=1e-2, normalize_y=False);
+	gp_ref = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b', n_restarts_optimizer=gp_restart, alpha=Tychonov_regularization_coeff, normalize_y=False);
 	gp_ref.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1));
 	oy, os = gp_ref.predict(xx.reshape(-1, 1), return_std=True)
 	oy = oy.flatten();
@@ -227,7 +228,7 @@ print("Log L MF: ", Mfs[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx).r
 print("Qcrit MbF: ", Mfs[-1].Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() )
 
 Mfs_Nno_Basis = GP(kernel);
-Mfs_Nno_Basis.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1), 1e-2);
+Mfs_Nno_Basis.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
 print("Score SF: ", Mfs_Nno_Basis.score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
 print("Log L SF: ", Mfs_Nno_Basis.compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
 print("Qcrit SF: ", Mfs_Nno_Basis.Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() )

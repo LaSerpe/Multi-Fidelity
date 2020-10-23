@@ -50,6 +50,7 @@ RandomDataGenerator.seed(1);
 col = ['r', 'b', 'm'];
 FONTSIZE = 22
 
+Tychonov_regularization_coeff= 1e-4;
 
 x_min = 0.0;
 x_max = 1.0;
@@ -100,7 +101,7 @@ Mfs = [];
 
 for Nm in range(Nmod):	
 	Mfs.append( GP(kernel));
-	Mfs[Nm].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), 1e-2);
+	Mfs[Nm].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
 	print(Mfs[Nm].kernel)
 	print(Mfs[Nm].regression_param)
 
@@ -121,7 +122,7 @@ Total_Training_Points = np.hstack([i for i in Train_points]).reshape(-1, 1)
 Total_Observations = np.hstack([i[:, 0] for i in observations]).reshape(-1, 1)
 Total_Noise = np.hstack([i for i in cc]).reshape(-1, 1)
 #Mfs_total.fit(Total_Training_Points, Total_Observations, Total_Noise);
-Mfs_total.fit(Total_Training_Points, Total_Observations, 1e-2);
+Mfs_total.fit(Total_Training_Points, Total_Observations, Tychonov_regularization_coeff);
 
 print(Mfs_total.kernel)
 print(Mfs_total.regression_param)
@@ -130,7 +131,7 @@ print("Score: ", Mfs_total.score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
 
 
 #gp_ref = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b', n_restarts_optimizer=gp_restart, alpha=Total_Noise.flatten(), normalize_y=False);
-gp_ref = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b', n_restarts_optimizer=gp_restart, alpha=1e-2, normalize_y=False);
+gp_ref = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b', n_restarts_optimizer=gp_restart, alpha=Tychonov_regularization_coeff, normalize_y=False);
 gp_ref.fit(Total_Training_Points, Total_Observations);
 print(gp_ref.kernel_)
 print("Score: ", gp_ref.score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
