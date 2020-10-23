@@ -107,15 +107,17 @@ for nn in range(len(Nobs_array)):
 	inner = gridspec.GridSpecFromSubplotSpec(Nmod, 1, subplot_spec= outer[N_columns*nn], wspace=0.1, hspace=0.1)
 	
 	for Nm in range(Nmod):
-		if Nm == 0: 
-			Mfs.append(GP(kernel, [basis_function]));
-			Mfs[Nm].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
+		if not Mfs: 
+			#Mfs.append(GP(kernel, [basis_function]));
+			Mfs.append(GP(kernel));
+			Mfs[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
 		else:
+			#Mfs.append( GP(kernel, [Mfs[-1].predict]) );
 			Mfs.append( GP(kernel, [Mfs[i].predict for i in range(Nm)]) );
-			Mfs[Nm].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
+			Mfs[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
 
 
-		yy, vv = Mfs[Nm].predict(xx.reshape(-1, 1), return_variance= True) 
+		yy, vv = Mfs[-1].predict(xx.reshape(-1, 1), return_variance= True) 
 		yy = yy.flatten();
 		ss = np.sqrt(np.diag(vv))
 
@@ -189,14 +191,16 @@ for nn in range(len(Nobs_array)):
 	#ax.barh(np.arange(len(Mfs[Nm].regression_param)), Mfs[Nm].regression_param.flatten(), 0.2, tick_label=["M " + str(j+1) for j in range(len(Mfs[Nm].regression_param))])
 
 	for i in range(Nmod):
-		ax.bar(i+1, np.absolute( Mfs[i].regression_param ).max() +0.1, 0.95, color='gainsboro', edgecolor='k');
+		ax.bar(i, np.absolute( Mfs[i].regression_param ).max() +0.1, 0.95, color='gainsboro', edgecolor='k');
 		l = len(Mfs[i].regression_param.flatten());
 		w = 1.0/(l);
 		bar_chart_width= 0.7/(Nmod-1);
 
 		w = 1.0/(Nmod-1);
-		ax.bar([(i+0.5)+w/2 +j*w for j in range(l)], np.absolute( Mfs[i].regression_param ).flatten(), bar_chart_width, color=[ 'r' if j else 'k' for j in (Mfs[i].regression_param > 0) ] )
-	ax.set_xticklabels(["M " + str(j) for j in range(Nmod+1)]);
+		ax.bar([(i-0.5)+w/2 +j*w for j in range(l)], np.absolute( Mfs[i].regression_param ).flatten(), bar_chart_width, color=[ 'r' if j else 'k' for j in (Mfs[i].regression_param > 0) ] )
+	ax.set_xticks([j for j in range(Nmod)]);
+	ax.set_xticklabels(["M " + str(j+1) for j in range(Nmod)]);
+
 
 	ax.legend(frameon=False)
 	fig_frame.add_subplot(ax)
@@ -212,23 +216,26 @@ for nn in range(len(Nobs_array)):
 	Mfs_ordered = [];
 
 	inner = gridspec.GridSpecFromSubplotSpec(Nmod, 1, subplot_spec= outer2[N_columns*nn], wspace=0.1, hspace=0.1)
+	ii= 0;
 	
 	model_order = np.append(np.argsort( np.absolute(Mfs[-1].regression_param.flatten()) ), Nmod-1).flatten();
 	print(model_order)
 	for Nm in model_order:
 		if not Mfs_ordered: 
-			Mfs_ordered.append(GP(kernel, [basis_function]));
+			#Mfs_ordered.append(GP(kernel, [basis_function]));
+			Mfs_ordered.append(GP(kernel));
 			Mfs_ordered[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
 		else:
+			#Mfs_ordered.append( GP(kernel, [Mfs_ordered[-1].predict]) );
 			Mfs_ordered.append( GP(kernel, [Mfs_ordered[i].predict for i in range( len(Mfs_ordered) )]) );
 			Mfs_ordered[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
-
 
 		yy, vv = Mfs_ordered[-1].predict(xx.reshape(-1, 1), return_variance= True) 
 		yy = yy.flatten();
 		ss = np.sqrt(np.diag(vv))
 
-		ax = plt.Subplot(fig_frame2, inner[Nm])
+		ax = plt.Subplot(fig_frame2, inner[ii]);
+		ii+=1;
 
 		ax.scatter(Train_points[Nm], observations[Nm][:, 0])
 
@@ -295,18 +302,19 @@ for nn in range(len(Nobs_array)):
 	inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec= outer2[N_columns*nn+2], wspace=0.1, hspace=0.3)
 	ax = plt.Subplot(fig_frame2, inner[0])
 
-	print(["M " + str(j+1) for j in model_order[0:-1] ])
+	print(["M " + str(j+1) for j in model_order ])
 	#ax.barh(model_order[0:-1], Mfs_ordered[-1].regression_param.flatten(), 0.2, tick_label=["M " + str(j+1) for j in model_order[0:-1] ], color='r')
 
 	for i in range(Nmod):
-		ax.bar(i+1, np.absolute( Mfs_ordered[i].regression_param ).max() +0.1, 0.95, color='gainsboro', edgecolor='k');
+		ax.bar(i, np.absolute( Mfs_ordered[i].regression_param ).max() +0.1, 0.95, color='gainsboro', edgecolor='k');
 		l = len(Mfs_ordered[i].regression_param.flatten());
 		w = 1.0/(l);
 		bar_chart_width= 0.7/(Nmod-1);
 
 		w = 1.0/(Nmod-1);
-		ax.bar([(i+0.5)+w/2 +j*w for j in range(l)], np.absolute( Mfs_ordered[i].regression_param ).flatten(), bar_chart_width, color=[ 'r' if j else 'k' for j in (Mfs_ordered[i].regression_param > 0) ] )
-	ax.set_xticklabels(["M " + str(j) for j in range(Nmod+1)]);
+		ax.bar([(i-0.5)+w/2 +j*w for j in model_order[0:l]], np.absolute( Mfs_ordered[i].regression_param ).flatten(), bar_chart_width, color=[ 'r' if j else 'k' for j in (Mfs_ordered[i].regression_param > 0) ] )
+	ax.set_xticks([j for j in range(Nmod)])
+	ax.set_xticklabels(["M " + str(j+1) for j in model_order]);
 
 	ax.legend(frameon=False)
 	fig_frame2.add_subplot(ax)
