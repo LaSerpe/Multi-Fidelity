@@ -64,14 +64,15 @@ Tychonov_regularization_coeff= 1e-4;
 
 gp_restart = 10;
 kernel = ConstantKernel(1.0**2, (3.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, length_scale_bounds=(1.0e-2, 1.0e1)) \
-+ WhiteKernel(noise_level=1.0e-2, noise_level_bounds=(1.0e-6, 1.0e-0));
++ WhiteKernel(noise_level=1.0e-2, noise_level_bounds=(1.0e-8, 1.0e-0));
 
 
 
 #Nobs_array = [ 2, 2, 2 ];
-Nobs_array = [ 3, 6, 9 ];
+#Nobs_array = [ 3, 6, 9 ];
 #Nobs_array = [ 4, 8, 16 ];
 Nobs_array = [ 5, 15, 20 ];
+#Nobs_array = [ 6, 12, 18 ];
 #Nobs_array = [ 3 ];
 
 N_columns = 3;
@@ -79,6 +80,8 @@ fig_frame = plt.figure(figsize=(14, 8))
 outer = gridspec.GridSpec( len(Nobs_array), N_columns, wspace= 0.2, hspace= 0.2 )
 fig_frame2 = plt.figure(figsize=(14, 8))
 outer2= gridspec.GridSpec( len(Nobs_array), N_columns, wspace= 0.2, hspace= 0.2 )
+fig_frame3 = plt.figure(figsize=(14, 8))
+outer3= gridspec.GridSpec( len(Nobs_array), N_columns, wspace= 0.2, hspace= 0.2 )
 
 for nn in range(len(Nobs_array)):
 	Nobs = Nobs_array[nn];
@@ -211,13 +214,22 @@ for nn in range(len(Nobs_array)):
 
 
 
+
+
+
+
+
+
+
+
+
 	# Here is ordered order
 	
 	Mfs_ordered = [];
 
 	inner = gridspec.GridSpecFromSubplotSpec(Nmod, 1, subplot_spec= outer2[N_columns*nn], wspace=0.1, hspace=0.1)
 	ii= 0;
-	
+
 	model_order = np.append(np.argsort( np.absolute(Mfs[-1].regression_param.flatten()) ), Nmod-1).flatten();
 	print(model_order)
 	for Nm in model_order:
@@ -323,11 +335,137 @@ for nn in range(len(Nobs_array)):
 	print()
 
 
+
+
+
+
+
+
+
+
+
+
+
+# Here is ordered order inverted
+	
+	Mfs_ordered = [];
+
+	inner = gridspec.GridSpecFromSubplotSpec(Nmod, 1, subplot_spec= outer3[N_columns*nn], wspace=0.1, hspace=0.1)
+	ii= 0;
+	
+	model_order = np.append(np.argsort( np.absolute(Mfs[-1].regression_param.flatten()) )[::-1], Nmod-1).flatten();
+	print(model_order)
+	for Nm in model_order:
+		if not Mfs_ordered: 
+			#Mfs_ordered.append(GP(kernel, [basis_function]));
+			Mfs_ordered.append(GP(kernel));
+			Mfs_ordered[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
+		else:
+			#Mfs_ordered.append( GP(kernel, [Mfs_ordered[-1].predict]) );
+			Mfs_ordered.append( GP(kernel, [Mfs_ordered[i].predict for i in range( len(Mfs_ordered) )]) );
+			Mfs_ordered[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
+
+		yy, vv = Mfs_ordered[-1].predict(xx.reshape(-1, 1), return_variance= True) 
+		yy = yy.flatten();
+		ss = np.sqrt(np.diag(vv))
+
+		ax = plt.Subplot(fig_frame3, inner[ii]);
+		ii+=1;
+
+		ax.scatter(Train_points[Nm], observations[Nm][:, 0])
+
+		ax.plot(xx, yy, color='r', label='GP')
+		ax.fill_between(xx, yy-ss, yy+ss, facecolor='r', alpha=0.3, interpolate=True)
+
+
+		ax.plot(xx, truth(xx), color='k', label='Truth')
+
+		ax.yaxis.set_major_formatter(plt.NullFormatter())
+		ax.set_ylabel('M ' + str(Nm+1))
+		fig_frame3.add_subplot(ax)
+
+	ax.set_xlabel('x', fontsize=FONTSIZE)
+
+
+	print("Score MF: ", Mfs_ordered[-1].score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
+	print("Log L MF: ", Mfs_ordered[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
+	print("Qcrit MF: ", Mfs_ordered[-1].Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() )
+	print(Mfs_ordered[-1].kernel)
+	print(Mfs_ordered[-1].regression_param)
+
+	yy, vv = Mfs_ordered[-1].predict(xx.reshape(-1, 1), return_variance= True) 
+	yy = yy.flatten();
+	ss = np.sqrt(np.diag(vv))
+
+	# GP_single = GP(kernel);
+	# GP_single.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
+	# yy_s, vv_s = GP_single.predict(xx.reshape(-1, 1), return_variance= True) 
+	# yy_s = yy_s.flatten();
+	# ss_s = np.sqrt(np.diag(vv_s))
+
+	# print("Score SF: ", GP_single.score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
+	# print("Log L SF: ", GP_single.compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
+	# print("Qcrit SF: ", GP_single.Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() )
+	# print(GP_single.kernel)
+	# print(GP_single.regression_param)
+
+	gp_ref = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b', n_restarts_optimizer=gp_restart, alpha=Tychonov_regularization_coeff, normalize_y=False);
+	gp_ref.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1));
+	oy, os = gp_ref.predict(xx.reshape(-1, 1), return_std=True)
+	oy = oy.flatten();
+	os = os.flatten();
+
+
+	inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec= outer3[N_columns*nn+1], wspace=0.1, hspace=0.1)
+	ax = plt.Subplot(fig_frame3, inner[0])
+
+	ax.scatter(Train_points[-1], observations[-1][:, 0])
+
+	ax.plot(xx, truth(xx), color='k', label='Truth')
+
+	ax.plot(xx, yy, color='r', label='MF GP')
+	ax.fill_between(xx, yy-ss, yy+ss, facecolor='r', alpha=0.3, interpolate=True)
+	# ax.plot(xx, yy_s, color='g', label='SF GP')
+	# ax.fill_between(xx, yy_s-ss_s, yy_s+ss_s, facecolor='g', alpha=0.3, interpolate=True)
+	ax.plot(xx, oy, color='b', label='SKL GP')
+	ax.fill_between(xx, oy-os, oy+os, facecolor='b', alpha=0.3, interpolate=True)
+
+	ax.legend(prop={'size': FONTSIZE}, frameon=False)
+	ax.legend(frameon=False)
+	fig_frame3.add_subplot(ax)
+
+	inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec= outer3[N_columns*nn+2], wspace=0.1, hspace=0.3)
+	ax = plt.Subplot(fig_frame3, inner[0])
+
+	print(["M " + str(j+1) for j in model_order ])
+	#ax.barh(model_order[0:-1], Mfs_ordered[-1].regression_param.flatten(), 0.2, tick_label=["M " + str(j+1) for j in model_order[0:-1] ], color='r')
+
+	for i in range(Nmod):
+		ax.bar(i, np.absolute( Mfs_ordered[i].regression_param ).max() +0.1, 0.95, color='gainsboro', edgecolor='k');
+		l = len(Mfs_ordered[i].regression_param.flatten());
+		w = 1.0/(l);
+		bar_chart_width= 0.7/(Nmod-1);
+
+		w = 1.0/(Nmod-1);
+		ax.bar([(i-0.5)+w/2 +j*w for j in model_order[0:l]], np.absolute( Mfs_ordered[i].regression_param ).flatten(), bar_chart_width, color=[ 'r' if j else 'k' for j in (Mfs_ordered[i].regression_param > 0) ] )
+	ax.set_xticks([j for j in range(Nmod)])
+	ax.set_xticklabels(["M " + str(j+1) for j in model_order]);
+
+	ax.legend(frameon=False)
+	fig_frame3.add_subplot(ax)
+
+
+	print()
+
+
 fig_frame.tight_layout()
 plt.savefig('FIGURES/cmp.pdf')
 
 fig_frame2.tight_layout()
-plt.savefig('FIGURES/cmp2.pdf')
+plt.savefig('FIGURES/cmp_ordered.pdf')
+
+fig_frame3.tight_layout()
+plt.savefig('FIGURES/cmp_ordered_inv.pdf')
 
 plt.show()
 exit()
