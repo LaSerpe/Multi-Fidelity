@@ -71,7 +71,7 @@ class GP:
 			for i in self.regression_param: bounds = np.append(bounds, [[-10.0, 10.0]], axis=0)
 
 
-		for int_it in range(10):
+		for int_it in range(15):
 			InternalRandomGenerator = np.random.RandomState();
 			x0 = InternalRandomGenerator.uniform(bounds[:, 0], bounds[:, 1]);
 			res = sp.optimize.minimize(self.cost_function, x0, method="L-BFGS-B", bounds=bounds)
