@@ -75,6 +75,7 @@ class GP:
 			InternalRandomGenerator = np.random.RandomState();
 			x0 = InternalRandomGenerator.uniform(bounds[:, 0], bounds[:, 1]);
 			res = sp.optimize.minimize(self.cost_function, x0, method="L-BFGS-B", bounds=bounds)
+			#res = sp.optimize.minimize(self.cost_function, x0, method="L-BFGS-B", bounds=bounds, tol= 1e-09, options={'disp': None, 'maxcor': 10, 'ftol': 1e-09, 'maxiter': 15000})
 			if (self.cost_function(res.x)[0] < MIN):
 				MIN = self.cost_function(res.x)
 				MIN_x = res.x;

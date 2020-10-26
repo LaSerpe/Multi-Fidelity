@@ -72,15 +72,16 @@ kernel = ConstantKernel(1.0**2, (3.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, l
 #Nobs_array = [ 3, 6, 9 ];
 #Nobs_array = [ 4, 8, 16 ];
 Nobs_array = [ 5, 15, 20 ];
+#Nobs_array = [ 1, 1, 1 ];
 #Nobs_array = [ 6, 12, 18 ];
 #Nobs_array = [ 3 ];
 
 nOrdering = 4;
 N_columns = 3;
 fig_frame = [];
-for iOrdering in range(nOrdering):
+for iOrdering in range( len(Nobs_array) ):
 	fig_frame.append(plt.figure(figsize=(14, 8)));
-outer = gridspec.GridSpec( len(Nobs_array), N_columns, wspace= 0.2, hspace= 0.2 );
+outer = gridspec.GridSpec( nOrdering, N_columns, wspace= 0.2, hspace= 0.2 );
 
 model_order = [];
 model_order.append([0, 1, 2, 3]);
@@ -107,14 +108,12 @@ for nn in range(len(Nobs_array)):
 
 
 	Mfs_store = [];
-
+	it_frame = fig_frame[nn];
 
 	for iOrdering in range(nOrdering):	
 
-		it_frame = fig_frame[iOrdering];
-		inner = gridspec.GridSpecFromSubplotSpec(Nmod, 1, subplot_spec= outer[N_columns*nn], wspace=0.1, hspace=0.1)
 		
-		ii= 0;
+		inner = gridspec.GridSpecFromSubplotSpec(Nmod, 1, subplot_spec= outer[N_columns*iOrdering], wspace=0.1, hspace=0.1)
 		
 		print(model_order[iOrdering])
 		Mfs = [];
@@ -133,8 +132,8 @@ for nn in range(len(Nobs_array)):
 			yy = yy.flatten();
 			ss = np.sqrt(np.diag(vv))
 
-			ax = plt.Subplot(it_frame, inner[ii])
-			ii+=1;
+
+			ax = plt.Subplot(it_frame, inner[ np.where(np.array(model_order[iOrdering]) == Nm )[0][0] ])
 
 			ax.scatter(Train_points[Nm], observations[Nm][:, 0])
 
@@ -180,7 +179,7 @@ for nn in range(len(Nobs_array)):
 		os = os.flatten();
 
 
-		inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec= outer[N_columns*nn+1], wspace=0.1, hspace=0.1)
+		inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec= outer[N_columns*iOrdering+1], wspace=0.1, hspace=0.1)
 		ax = plt.Subplot(it_frame, inner[0])
 
 		ax.scatter(Train_points[-1], observations[-1][:, 0])
@@ -198,7 +197,7 @@ for nn in range(len(Nobs_array)):
 		ax.legend(frameon=False)
 		it_frame.add_subplot(ax)
 
-		inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec= outer[N_columns*nn+2], wspace=0.1, hspace=0.3)
+		inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec= outer[N_columns*iOrdering+2], wspace=0.1, hspace=0.3)
 		ax = plt.Subplot(it_frame, inner[0])
 
 		#ax.barh(np.arange(len(Mfs[Nm].regression_param)), Mfs[Nm].regression_param.flatten(), 0.2, tick_label=["M " + str(j+1) for j in range(len(Mfs[Nm].regression_param))])
@@ -240,13 +239,13 @@ for nn in range(len(Nobs_array)):
 			sub_model_ordering = np.array(sub_model_ordering);
 			model_order.append( sub_model_ordering.flatten() );
 
-		fig_frame[iOrdering].tight_layout()
-		plt.savefig('FIGURES/cmp_' + str(iOrdering) + '.pdf')
 
 	print()
 
-	
 
+for nn in range(len(Nobs_array)):
+	fig_frame[nn].tight_layout()
+	fig_frame[nn].savefig('FIGURES/cmp_' + str(nn) + '.pdf')
 
 plt.show()
 exit()
