@@ -74,7 +74,7 @@ kernel = ConstantKernel(1.0**2, (1.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, l
 Nobs_array = [ 3, 5, 15, 20 ];
 #Nobs_array = [ 8, 16, 20 ];
 #Nobs_array = [ 6, 12, 18 ];
-#Nobs_array = [ 10 ];
+#Nobs_array = [ 6 ];
 
 nOrdering = 4;
 N_columns = 4;
@@ -157,10 +157,12 @@ for nn in range(len(Nobs_array)):
 		print(Mfs[-1].regression_param.flatten())
 
 		inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec= outer[N_columns*iOrdering+3], wspace=0.1, hspace=0.1)
-		print(model_order[iOrdering])
-		tmp = [ round( Mfs[-1].regression_param.flatten()[j] , 3) for j in model_order[iOrdering][0:-1] ];
-		print( Mfs[-1].regression_param.flatten() )
-		print(tmp)
+		#print(model_order[iOrdering])
+		tmp = [ 0.0 for j in model_order[iOrdering][0:-1] ];
+		for i in range(len(tmp)): tmp[ model_order[iOrdering][i] ] = round( Mfs[-1].regression_param.flatten()[i] , 3)
+		# tmp = [ round( Mfs[-1].regression_param.flatten()[j] , 3) for j in model_order[iOrdering][0:-1] ];
+		#print( Mfs[-1].regression_param.flatten() )
+		#print(tmp)
 		ax = plt.Subplot(it_frame, inner[0])
 		txt = "Score MF: " + str( Mfs[-1].score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1))) + '\n' + \
 		"L2 er MF: " + str( Mfs[-1].L2normCreteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() ) + '\n' + \
