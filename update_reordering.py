@@ -26,6 +26,8 @@ from GP_module import GP
 from models_module import *
 
 
+
+
 def basis_function(x, return_variance= False):
 	# basis = np.ones((1, len(x)));
 	# for i in range(len(x)):
@@ -83,12 +85,12 @@ for iOrdering in range( len(Nobs_array) ):
 	fig_frame.append(plt.figure(figsize=(14, 8)));
 outer = gridspec.GridSpec( nOrdering, N_columns, wspace= 0.2, hspace= 0.2 );
 
-model_order = [];
-model_order.append([0, 1, 2, 3]);
 
 
 for nn in range(len(Nobs_array)):
 	Nobs = Nobs_array[nn];
+	model_order = [];
+	model_order.append([0, 1, 2, 3]);
 
 	print("Number of observations " + str(Nobs));
 	print("Generating synthetic data")
@@ -262,7 +264,7 @@ for nn in range(len(Nobs_array)):
 
 			sub_model_ordering.reverse();
 			sub_model_ordering.append( Nmod-1 );
-			sub_model_ordering = np.array(sub_model_ordering);
+			sub_model_ordering = np.array(sub_model_ordering).copy();
 			model_order.append( sub_model_ordering.flatten() );
 
 
