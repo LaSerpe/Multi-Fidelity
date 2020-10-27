@@ -62,8 +62,8 @@ Nmod = len(models);
 
 Tychonov_regularization_coeff= 1e-4;
 
-gp_restart = 15;
-kernel = ConstantKernel(1.0**2, (3.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, length_scale_bounds=(1.0e-2, 1.0e1)) \
+gp_restart = 10;
+kernel = ConstantKernel(1.0**2, (1.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, length_scale_bounds=(1.0e-2, 1.0e1)) \
 + WhiteKernel(noise_level=1.0e-2, noise_level_bounds=(1.0e-8, 1.0e-0));
 
 
@@ -71,13 +71,13 @@ kernel = ConstantKernel(1.0**2, (3.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, l
 #Nobs_array = [ 2, 2, 2 ];
 #Nobs_array = [ 3, 6, 9 ];
 #Nobs_array = [ 4, 8, 16 ];
-Nobs_array = [ 5, 15, 20 ];
-#Nobs_array = [ 1, 1, 1 ];
+Nobs_array = [ 3, 5, 15, 20 ];
+#Nobs_array = [ 8, 16, 20 ];
 #Nobs_array = [ 6, 12, 18 ];
-#Nobs_array = [ 3 ];
+#Nobs_array = [ 10 ];
 
 nOrdering = 4;
-N_columns = 3;
+N_columns = 4;
 fig_frame = [];
 for iOrdering in range( len(Nobs_array) ):
 	fig_frame.append(plt.figure(figsize=(14, 8)));
@@ -109,6 +109,7 @@ for nn in range(len(Nobs_array)):
 
 	Mfs_store = [];
 	it_frame = fig_frame[nn];
+	it_frame.suptitle('N points ' + str(Nobs) );
 
 	for iOrdering in range(nOrdering):	
 
@@ -147,14 +148,36 @@ for nn in range(len(Nobs_array)):
 			ax.set_ylabel('M ' + str(Nm+1))
 			it_frame.add_subplot(ax)
 
-		ax.set_xlabel('x', fontsize=FONTSIZE)
 
 
 		print("Score MF: ", Mfs[-1].score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
 		print("Log L MF: ", Mfs[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
 		print("Qcrit MF: ", Mfs[-1].Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() )
 		print(Mfs[-1].kernel)
-		print(Mfs[-1].regression_param)
+		print(Mfs[-1].regression_param.flatten())
+
+		inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec= outer[N_columns*iOrdering+3], wspace=0.1, hspace=0.1)
+		print(model_order[iOrdering])
+		tmp = [ round( Mfs[-1].regression_param.flatten()[j] , 3) for j in model_order[iOrdering][0:-1] ];
+		print( Mfs[-1].regression_param.flatten() )
+		print(tmp)
+		ax = plt.Subplot(it_frame, inner[0])
+		txt = "Score MF: " + str( Mfs[-1].score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1))) + '\n' + \
+		"L2 er MF: " + str( Mfs[-1].L2normCreteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() ) + '\n' + \
+		"Log L MF: " + str( Mfs[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1))[0] ) + '\n\n' + \
+		str( Mfs[-1].kernel) + '\n' + \
+		str( tmp ) 
+		#"Qcrit MF: " + str( Mfs[-1].Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() ) + '\n' + \
+		ax.text(0, 0, txt, fontsize=10, ha='left', wrap=True)
+		#it_frame.setp(ax.gca(), frame_on=False, xticks=(), yticks=())
+		ax.set_axis_off()
+		ax.set_frame_on(False)
+		#ax.set_xticklabels([]);
+		it_frame.add_subplot(ax)
+
+
+
+
 
 		yy, vv = Mfs[-1].predict(xx.reshape(-1, 1), return_variance= True) 
 		yy = yy.flatten();
@@ -230,11 +253,12 @@ for nn in range(len(Nobs_array)):
 			sub_model_ordering = [];
 			tmp = -1;
 			while True:
-				tmp = np.argsort( np.absolute(Mfs_store[0][tmp].regression_param.flatten()) )[0];
+				tmp = np.argsort( np.absolute(Mfs_store[0][tmp].regression_param.flatten()) )[-1];
 				sub_model_ordering.append( tmp );
 				if (tmp == 0):
 					break;
 
+			sub_model_ordering.reverse();
 			sub_model_ordering.append( Nmod-1 );
 			sub_model_ordering = np.array(sub_model_ordering);
 			model_order.append( sub_model_ordering.flatten() );

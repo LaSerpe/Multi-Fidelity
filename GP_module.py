@@ -71,7 +71,7 @@ class GP:
 			for i in self.regression_param: bounds = np.append(bounds, [[-10.0, 10.0]], axis=0)
 
 
-		for int_it in range(15):
+		for int_it in range(10):
 			InternalRandomGenerator = np.random.RandomState();
 			x0 = InternalRandomGenerator.uniform(bounds[:, 0], bounds[:, 1]);
 			res = sp.optimize.minimize(self.cost_function, x0, method="L-BFGS-B", bounds=bounds)
@@ -133,5 +133,13 @@ class GP:
 
 		return np.absolute( 0.5*sp.special.erf( np.divide((y - y_gp) , (np.sqrt(2)*(sigma_gp+eps) )) ) ) * ( np.absolute(y - y_gp) * sigma_gp)
 		#return np.absolute( 0.5*sp.special.erf( np.divide((y - y_gp) , (np.sqrt(2)*(sigma_gp+eps) )) ) ) * np.absolute(y - y_gp) / sigma_gp ;
+
+
+	def L2normCreteria(self, x, y, eps=0.00):
+		y_gp= self.predict(x);
+		y_gp = y_gp.reshape(-1, 1);
+
+		return np.absolute( y - y_gp ).sum();
+		
 
 
