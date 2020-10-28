@@ -158,46 +158,22 @@ for nn in range(len(Nobs_array)):
 		print(Mfs[-1].kernel)
 		print(Mfs[-1].regression_param.flatten())
 
-		inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec= outer[N_columns*iOrdering+3], wspace=0.1, hspace=0.1)
-		#print(model_order[iOrdering])
-		tmp = [ 0.0 for j in model_order[iOrdering][0:-1] ];
-		for i in range(len(tmp)): tmp[ model_order[iOrdering][i] ] = round( Mfs[-1].regression_param.flatten()[i] , 3)
-		# tmp = [ round( Mfs[-1].regression_param.flatten()[j] , 3) for j in model_order[iOrdering][0:-1] ];
-		#print( Mfs[-1].regression_param.flatten() )
-		#print(tmp)
-		ax = plt.Subplot(it_frame, inner[0])
-		txt = "Score MF: " + str( Mfs[-1].score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1))) + '\n' + \
-		"L2 er MF: " + str( Mfs[-1].L2normCreteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() ) + '\n' + \
-		"Log L MF: " + str( Mfs[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1))[0] ) + '\n\n' + \
-		str( Mfs[-1].kernel) + '\n' + \
-		str( tmp ) 
-		#"Qcrit MF: " + str( Mfs[-1].Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() ) + '\n' + \
-		ax.text(0, 0, txt, fontsize=10, ha='left', wrap=True)
-		#it_frame.setp(ax.gca(), frame_on=False, xticks=(), yticks=())
-		ax.set_axis_off()
-		ax.set_frame_on(False)
-		#ax.set_xticklabels([]);
-		it_frame.add_subplot(ax)
-
-
-
-
 
 		yy, vv = Mfs[-1].predict(xx.reshape(-1, 1), return_variance= True) 
 		yy = yy.flatten();
 		ss = np.sqrt(np.diag(vv))
 
-		# GP_single = GP(kernel);
-		# GP_single.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
-		# yy_s, vv_s = GP_single.predict(xx.reshape(-1, 1), return_variance= True) 
-		# yy_s = yy_s.flatten();
-		# ss_s = np.sqrt(np.diag(vv_s))
+		GP_single = GP(kernel);
+		GP_single.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
+		yy_s, vv_s = GP_single.predict(xx.reshape(-1, 1), return_variance= True) 
+		yy_s = yy_s.flatten();
+		ss_s = np.sqrt(np.diag(vv_s))
 
-		# print("Score SF: ", GP_single.score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
-		# print("Log L SF: ", GP_single.compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
-		# print("Qcrit SF: ", GP_single.Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() )
-		# print(GP_single.kernel)
-		# print(GP_single.regression_param)
+		print("Score SF: ", GP_single.score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
+		print("Log L SF: ", GP_single.compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
+		print("Qcrit SF: ", GP_single.Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() )
+		print(GP_single.kernel)
+		print(GP_single.regression_param)
 
 		gp_ref = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b', n_restarts_optimizer=gp_restart, alpha=Tychonov_regularization_coeff, normalize_y=False);
 		gp_ref.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1));
@@ -215,19 +191,45 @@ for nn in range(len(Nobs_array)):
 
 		ax.plot(xx, yy, color='r', label='MF GP')
 		ax.fill_between(xx, yy-ss, yy+ss, facecolor='r', alpha=0.3, interpolate=True)
-		# ax.plot(xx, yy_s, color='g', label='SF GP')
-		# ax.fill_between(xx, yy_s-ss_s, yy_s+ss_s, facecolor='g', alpha=0.3, interpolate=True)
+		ax.plot(xx, yy_s, color='g', label='SF GP')
+		ax.fill_between(xx, yy_s-ss_s, yy_s+ss_s, facecolor='g', alpha=0.3, interpolate=True)
 		ax.plot(xx, oy, color='b', label='SKL GP')
 		ax.fill_between(xx, oy-os, oy+os, facecolor='b', alpha=0.3, interpolate=True)
 
-		ax.legend(prop={'size': FONTSIZE}, frameon=False)
-		ax.legend(frameon=False)
+		ax.legend(prop={'size': 6}, frameon=False)
+		#ax.legend(frameon=False)
 		it_frame.add_subplot(ax)
+
+
+		inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec= outer[N_columns*iOrdering+3], wspace=0.1, hspace=0.1)
+		tmp = [ 0.0 for j in model_order[iOrdering][0:-1] ];
+		for i in range(len(tmp)): tmp[ model_order[iOrdering][i] ] = round( Mfs[-1].regression_param.flatten()[i] , 3)
+		ax = plt.Subplot(it_frame, inner[0])
+
+		# txt = "Score MF: " + str( Mfs[-1].score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1))) + '\n' + \
+		# "L2 er MF: " + str( Mfs[-1].L2normCreteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() ) + '\n' + \
+		# "Log L MF: " + str( Mfs[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1))[0] ) + '\n\n' + \
+		# str( Mfs[-1].kernel) + '\n' + \
+		# str( tmp ) 
+
+		txt = "Score MF: " + str( round( Mfs[-1].score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)), 3) ) + "  SF: " + \
+		str( round( GP_single.score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)), 3) ) + '\n' + \
+		"L2err MF: " + str( round( Mfs[-1].L2normCreteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum(), 3) ) + "  SF: " + \
+		str( round( GP_single.L2normCreteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum(), 3) ) + '\n' + \
+		"Log L MF: " + str( round( Mfs[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1))[0], 3 ) ) + "  SF: " + \
+		str( round( GP_single.compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1))[0], 3 ) ) + '\n\n' + \
+		str( Mfs[-1].kernel ) + '\n' + \
+		str( tmp ) 
+
+		ax.text(0, 0, txt, fontsize=10, ha='left', wrap=True)
+		ax.set_axis_off()
+		ax.set_frame_on(False)
+		it_frame.add_subplot(ax)
+
+
 
 		inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec= outer[N_columns*iOrdering+2], wspace=0.1, hspace=0.3)
 		ax = plt.Subplot(it_frame, inner[0])
-
-		#ax.barh(np.arange(len(Mfs[Nm].regression_param)), Mfs[Nm].regression_param.flatten(), 0.2, tick_label=["M " + str(j+1) for j in range(len(Mfs[Nm].regression_param))])
 
 		print(["M " + str(j+1) for j in model_order[iOrdering] ])
 		for i in range( len(Mfs) ):
