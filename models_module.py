@@ -31,7 +31,8 @@ def model_7(x):
 def model_8(x):
 	return [np.sin(x/x_max*math.pi*8.6)*x + x, 2e-8*np.random.normal(0.0, 1.0)];
 
-
+def model_9(x):
+	return [np.sin(x/x_max*math.pi*8)*x + x +0.1, 2e-8*np.random.normal(0.0, 1.0)];
 
 
 

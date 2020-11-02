@@ -51,6 +51,9 @@ RandomDataGenerator.seed(1);
 col = ['r', 'b', 'm'];
 FONTSIZE = 22
 
+Nested= True;
+Matching = False;
+Equal_size= True;
 
 x_min = 0.0;
 x_max = 1.0;
@@ -60,12 +63,16 @@ xx = np.linspace(x_min, x_max, Np);
 
 
 models = [model_1, model_2, model_3, model_4];
+models = [model_1, model_2, model_3, model_9];
+models = [model_1, model_2, model_3, model_6, model_4];
+#models = [model_1, model_4];
+#models = [model_6, model_7, model_8, model_4];
 Nmod = len(models);
 
 Tychonov_regularization_coeff= 1e-4;
 
 gp_restart = 10;
-kernel = ConstantKernel(1.0**2, (1.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, length_scale_bounds=(1.0e-2, 1.0e1)) \
+kernel = ConstantKernel(1.0**2, (1.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, length_scale_bounds=(1.0e-1, 1.0e1)) \
 + WhiteKernel(noise_level=1.0e-2, noise_level_bounds=(1.0e-8, 1.0e-0));
 
 
@@ -76,28 +83,49 @@ kernel = ConstantKernel(1.0**2, (1.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, l
 Nobs_array = [ 3, 5, 15, 20 ];
 #Nobs_array = [ 8, 16, 20 ];
 #Nobs_array = [ 6, 12, 18 ];
-#Nobs_array = [ 6 ];
+#Nobs_array = [ 7 ];
 
 nOrdering = 4;
+
 N_columns = 4;
 fig_frame = [];
 for iOrdering in range( len(Nobs_array) ):
 	fig_frame.append(plt.figure(figsize=(14, 8)));
 outer = gridspec.GridSpec( nOrdering, N_columns, wspace= 0.2, hspace= 0.2 );
-
+Train_points = [];
 
 
 for nn in range(len(Nobs_array)):
 	Nobs = Nobs_array[nn];
 	model_order = [];
-	model_order.append([0, 1, 2, 3]);
+	model_order.append(np.arange(Nmod).flatten());
 
 	print("Number of observations " + str(Nobs));
 	print("Generating synthetic data")
 
-	Nobs_model   = [Nobs for i in range(Nmod)];
-	Train_points = [RandomDataGenerator.uniform(x_min, x_max, Nobs_model[i]) for i in range(Nmod)];
+	if Equal_size:
+		Nobs_model   = [Nobs for i in range(Nmod)];
+	else:
+		Nobs_model   = [(Nmod - i)*Nobs for i in range(Nmod)];
+
+	if Matching:
+		if not Equal_size: print("Matching must have equal sized data sets!"); exit();
+		Train_points = [];
+		for i in range(Nmod):
+			RandomDataGenerator.seed(1);
+			Train_points.append( RandomDataGenerator.uniform(x_min, x_max, Nobs_model[i]) );
+
+	elif Nested and nn != 0:
+		for i in range(Nmod):
+			Train_points[i] = np.concatenate( (Train_points[i], RandomDataGenerator.uniform(x_min, x_max, Nobs_model[i]-len(Train_points[i])) ), axis=None)
+
+	else: 
+		Train_points = [];
+		for i in range(Nmod):
+			Train_points.append( RandomDataGenerator.uniform(x_min, x_max, Nobs_model[i]) );
+			#Train_points = [RandomDataGenerator.uniform(x_min, x_max, Nobs_model[i]) for i in range(Nmod)];
 	
+
 	observations = [];
 	for i in range(Nmod):
 		observations.append([]);
@@ -144,7 +172,8 @@ for nn in range(len(Nobs_array)):
 			ax.fill_between(xx, yy-ss, yy+ss, facecolor='r', alpha=0.3, interpolate=True)
 
 
-			ax.plot(xx, truth(xx), color='k', label='Truth')
+			#ax.plot(xx, truth(xx), color='k', label='Truth')
+			ax.plot(xx, models[Nm](xx)[:][0], color='k', label='Truth')
 
 			ax.yaxis.set_major_formatter(plt.NullFormatter())
 			ax.set_ylabel('M ' + str(Nm+1))
@@ -233,6 +262,7 @@ for nn in range(len(Nobs_array)):
 
 		print(["M " + str(j+1) for j in model_order[iOrdering] ])
 		for i in range( len(Mfs) ):
+			if (len(Mfs[i].regression_param) == 0): continue;
 			ax.bar(i, np.absolute( Mfs[i].regression_param ).max() +0.1, 0.95, color='gainsboro', edgecolor='k');
 			l = len(Mfs[i].regression_param.flatten());
 			w = 1.0/(l);
@@ -273,9 +303,13 @@ for nn in range(len(Nobs_array)):
 	print()
 
 
+if Matching: string_save= 'FIGURES/matching_cmp_';
+elif Nested: string_save= 'FIGURES/nested_cmp_';
+else:        string_save= 'FIGURES/cmp_';
+
 for nn in range(len(Nobs_array)):
 	fig_frame[nn].tight_layout()
-	fig_frame[nn].savefig('FIGURES/cmp_' + str(nn) + '.pdf')
+	fig_frame[nn].savefig( string_save + str(nn) + '.pdf')
 
 plt.show()
 exit()
