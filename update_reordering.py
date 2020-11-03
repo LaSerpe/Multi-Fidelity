@@ -65,7 +65,7 @@ xx = np.linspace(x_min, x_max, Np);
 models = [model_1, model_2, model_3, model_4];
 models = [model_1, model_2, model_3, model_9];
 models = [model_1, model_2, model_3, model_6, model_4];
-#models = [model_1, model_4];
+#models = [model_4];
 #models = [model_6, model_7, model_8, model_4];
 Nmod = len(models);
 
@@ -83,7 +83,7 @@ kernel = ConstantKernel(1.0**2, (1.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, l
 Nobs_array = [ 3, 5, 15, 20 ];
 #Nobs_array = [ 8, 16, 20 ];
 #Nobs_array = [ 6, 12, 18 ];
-#Nobs_array = [ 7 ];
+#Nobs_array = [ 3 ];
 
 nOrdering = 4;
 
@@ -184,6 +184,7 @@ for nn in range(len(Nobs_array)):
 		print("Score MF: ", Mfs[-1].score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
 		print("Log L MF: ", Mfs[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
 		print("Qcrit MF: ", Mfs[-1].Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() )
+		print('GPM')
 		print(Mfs[-1].kernel)
 		print(Mfs[-1].regression_param.flatten())
 
@@ -201,11 +202,13 @@ for nn in range(len(Nobs_array)):
 		print("Score SF: ", GP_single.score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
 		print("Log L SF: ", GP_single.compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
 		print("Qcrit SF: ", GP_single.Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() )
+		print('GPS')
 		print(GP_single.kernel)
-		print(GP_single.regression_param)
 
 		gp_ref = GaussianProcessRegressor(kernel=kernel, optimizer='fmin_l_bfgs_b', n_restarts_optimizer=gp_restart, alpha=Tychonov_regularization_coeff, normalize_y=False);
 		gp_ref.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1));
+		print('SKCP')
+		print(gp_ref.kernel_)
 		oy, os = gp_ref.predict(xx.reshape(-1, 1), return_std=True)
 		oy = oy.flatten();
 		os = os.flatten();
@@ -289,6 +292,7 @@ for nn in range(len(Nobs_array)):
 			sub_model_ordering = [];
 			tmp = -1;
 			while True:
+				if( len(Mfs_store[0][tmp].regression_param.flatten()) == 0): break;
 				tmp = np.argsort( np.absolute(Mfs_store[0][tmp].regression_param.flatten()) )[-1];
 				sub_model_ordering.append( tmp );
 				if (tmp == 0):
