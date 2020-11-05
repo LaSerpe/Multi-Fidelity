@@ -24,7 +24,7 @@ from math import pi
 import database as database
 #from GP_module import GP
 #from GP_module_M import GP
-from GP_module_O import GP
+from GP_module import GP
 from models_module import *
 
 
@@ -53,6 +53,7 @@ RandomDataGenerator.seed(1);
 col = ['r', 'b', 'm'];
 FONTSIZE = 22
 
+Mode='O'
 Nested= True;
 Matching = False;
 Equal_size= True;
@@ -85,7 +86,7 @@ kernel = ConstantKernel(1.0**2, (1.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, l
 Nobs_array = [ 3, 5, 15, 20 ];
 #Nobs_array = [ 8, 16, 20 ];
 #Nobs_array = [ 6, 12, 18 ];
-#Nobs_array = [ 3 ];
+Nobs_array = [ 7 ];
 
 nOrdering = 4;
 
@@ -153,11 +154,11 @@ for nn in range(len(Nobs_array)):
 		for Nm in model_order[iOrdering]:
 			if not Mfs: 
 				#Mfs.append(GP(kernel, [basis_function]));
-				Mfs.append(GP(kernel));
+				Mfs.append(GP(kernel, mode=Mode));
 				Mfs[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
 			else:
 				#Mfs.append( GP(kernel, [Mfs[-1].predict]) );
-				Mfs.append( GP(kernel, [Mfs[i].predict for i in range( len(Mfs) )]) );
+				Mfs.append( GP(kernel, [Mfs[i].predict for i in range( len(Mfs) )], mode=Mode) );
 				Mfs[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
 
 
@@ -195,7 +196,7 @@ for nn in range(len(Nobs_array)):
 		yy = yy.flatten();
 		ss = np.sqrt(np.diag(vv))
 
-		GP_single = GP(kernel);
+		GP_single = GP(kernel, mode=Mode);
 		GP_single.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
 		yy_s, vv_s = GP_single.predict(xx.reshape(-1, 1), return_variance= True) 
 		yy_s = yy_s.flatten();
@@ -310,7 +311,7 @@ for nn in range(len(Nobs_array)):
 	print()
 
 
-string_save = 'FIGURES/'
+string_save = 'FIGURES/' + Mode + '_';
 if Matching:      string_save+= 'matching_';
 if Nested:        string_save+= 'nested_';
 if Equal_size:    string_save+= 'equal_';

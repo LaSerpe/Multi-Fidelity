@@ -9,8 +9,13 @@ import copy
 
 
 class GP:
-	def __init__(self, Kernel, Basis= None):
+	def __init__(self, Kernel, Basis= None, mode='G'):
 		self.kernel = copy.deepcopy(Kernel);
+		if mode in['G', 'S', 'O']:
+			self.mode= mode;
+		else:
+			print("Error! Invalid GP mode");
+			exit();
 		if Basis is None: 
 			self.basis_function = None;
 			self.Nbasis= 0;
@@ -20,8 +25,9 @@ class GP:
 
 	def compute_Gramm_matrix(self, x1, x2):
 		K = self.kernel(x1, x2);
-		for i in range(self.Nbasis): 
-			K += self.basis_function[i](x1, x2, return_variance=True)[1]*self.regression_param[i]**2;
+		if self.mode != 'S':
+			for i in range(self.Nbasis): 
+				K += self.basis_function[i](x1, x2, return_variance=True)[1]*self.regression_param[i]**2;
 		if type(self.noise_level) is float: K[np.diag_indices_from(K)] += self.noise_level;
 		return K;
 
@@ -47,7 +53,8 @@ class GP:
 
 		for i in range(self.Nbasis): 
 			b -= self.basis[ i ]*regression_param[i];
-			K += self.basis_v[i]*regression_param[i]**2;
+			if self.mode != 'S':
+				K += self.basis_v[i]*regression_param[i]**2;
 
 		if type(self.noise_level) is float: K[np.diag_indices_from(K)] += self.noise_level;	
 
@@ -91,11 +98,6 @@ class GP:
 		b = np.copy(self.Training_values);
 		for i in range(self.Nbasis): 
 			b -= self.basis[i]*self.regression_param[i];
-			
-		# K = self.kernel(self.Training_points);
-		# for i in range(self.Nbasis): K += self.basis_v[i]*self.regression_param[i]**2;
-		# if type(self.noise_level) is float: K[np.diag_indices_from(K)] += self.noise_level;
-		# self.L     = cholesky(K, lower=True);
 
 		self.L     = cholesky(self.compute_Gramm_matrix(self.Training_points, self.Training_points), lower=True);
 		self.alpha = cho_solve((self.L, True), b)
@@ -114,16 +116,15 @@ class GP:
 			Basis   += a[0]*self.regression_param[i];
 			Basis_v += a[1]*self.regression_param[i]**2;
 
-		for i in range(self.Nbasis): 	
-			k_l += np.array( self.basis_function[i](x1, self.Training_points, True)[1] )*self.regression_param[i]**2;
-			k_r += np.array( self.basis_function[i](self.Training_points, x2, True)[1] )*self.regression_param[i]**2;
+		if self.mode == 'G':
+			for i in range(self.Nbasis): 	
+				k_l += np.array( self.basis_function[i](x1, self.Training_points, True)[1] )*self.regression_param[i]**2;
+				k_r += np.array( self.basis_function[i](self.Training_points, x2, True)[1] )*self.regression_param[i]**2;
 
 		mean = Basis + k_l.dot( np.array(self.alpha) )
 		
 		if return_variance is True:
 			v_r = cho_solve((self.L,   True), k_r  );
-			#v_l = cho_solve((self.L.T, True), k_l.T);
-			#variance = Basis_v + self.kernel(x, y) - v_l.T.dot(v_r);
 			variance = Basis_v + self.kernel(x1, x2) - k_l.dot(v_r);
 			return mean, variance;
 		else:
