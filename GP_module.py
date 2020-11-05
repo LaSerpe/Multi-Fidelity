@@ -45,9 +45,6 @@ class GP:
 		b = np.copy(self.Training_values);
 		K = self.kernel(self.Training_points);
 
-		# print(np.shape(self.basis))
-		# print(np.shape(regression_param))
-
 		for i in range(self.Nbasis): 
 			b -= self.basis[ i ]*regression_param[i];
 			K += self.basis_v[i]*regression_param[i]**2;
@@ -104,29 +101,6 @@ class GP:
 		self.alpha = cho_solve((self.L, True), b)
 
 
-
-	# def predict(self, x, return_variance= False):
-	# 	Basis = np.zeros((len(x), 1));
-	# 	Basis_v = np.zeros((len(x), len(x)));
-
-	# 	k = self.kernel(self.Training_points, x)
-
-	# 	if self.basis_function is not None: 
-	# 		for i in range(self.Nbasis): 
-	# 			a = self.basis_function[i](x, True)
-	# 			Basis   += a[0]*self.regression_param[i];
-	# 			Basis_v += a[1]*self.regression_param[i]**2;
-
-	# 	mean = Basis + k.T.dot(self.alpha);
-	# 	v = cho_solve((self.L, True), k);
-	# 	variance = Basis_v + self.kernel(x) - k.T.dot(v);
-
-	# 	if return_variance is True:
-	# 		return mean, variance;
-	# 	else:
-	# 		return mean;
-
-
 	def predict(self, x1, x2=None, return_variance= False):
 		if x2 is None: x2 = x1.copy();
 		Basis   = np.zeros((len(x1), 1));
@@ -157,7 +131,7 @@ class GP:
 
 
 	def score(self, x, y, sample_weight=None):
-		return 1 - ((y - self.predict(x).T)**2).sum() / ((y - y.mean())**2).sum()
+		return 1 - ( ( y - self.predict(x, return_variance= False) )**2 ).sum() / ((y - y.mean())**2).sum()
 
 
 	def Qcriteria(self, x, y, eps=0.00):

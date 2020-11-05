@@ -22,7 +22,9 @@ from IPython.display import display
 from math import pi
 
 import database as database
-from GP_module import GP
+#from GP_module import GP
+#from GP_module_M import GP
+from GP_module_O import GP
 from models_module import *
 
 
@@ -234,8 +236,9 @@ for nn in range(len(Nobs_array)):
 
 
 		inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec= outer[N_columns*iOrdering+3], wspace=0.1, hspace=0.1)
-		tmp = [ 0.0 for j in model_order[iOrdering][0:-1] ];
-		for i in range(len(tmp)): tmp[ model_order[iOrdering][i] ] = round( Mfs[-1].regression_param.flatten()[i] , 3)
+		tmp = [ 0.0 for i in model_order[iOrdering][0:-1] ];
+		#a = np.argsort( model_order[iOrdering] );
+		for i in range(len(tmp)): tmp[ np.argsort( model_order[iOrdering] )[i] ] = round( Mfs[-1].regression_param.flatten()[i] , 3)
 		ax = plt.Subplot(it_frame, inner[0])
 
 		# txt = "Score MF: " + str( Mfs[-1].score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1))) + '\n' + \
@@ -307,9 +310,10 @@ for nn in range(len(Nobs_array)):
 	print()
 
 
-if Matching: string_save= 'FIGURES/matching_cmp_';
-elif Nested: string_save= 'FIGURES/nested_cmp_';
-else:        string_save= 'FIGURES/cmp_';
+string_save = 'FIGURES/'
+if Matching:      string_save+= 'matching_';
+if Nested:        string_save+= 'nested_';
+if Equal_size:    string_save+= 'equal_';
 
 for nn in range(len(Nobs_array)):
 	fig_frame[nn].tight_layout()
