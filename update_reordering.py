@@ -53,7 +53,9 @@ RandomDataGenerator.seed(1);
 col = ['r', 'b', 'm'];
 FONTSIZE = 22
 
-Mode='O'
+Mode='G'
+Mode_Opt = 'MLL';
+#Mode_Opt = 'LOO';
 Nested= True;
 Matching = False;
 Equal_size= True;
@@ -76,7 +78,7 @@ Tychonov_regularization_coeff= 1e-4;
 
 gp_restart = 10;
 kernel = ConstantKernel(1.0**2, (1.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, length_scale_bounds=(1.0e-1, 1.0e1)) \
-+ WhiteKernel(noise_level=1.0e-2, noise_level_bounds=(1.0e-8, 1.0e-0));
+#+ WhiteKernel(noise_level=1.0e-2, noise_level_bounds=(1.0e-8, 1.0e-0));
 
 
 
@@ -86,7 +88,8 @@ kernel = ConstantKernel(1.0**2, (1.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, l
 Nobs_array = [ 3, 5, 15, 20 ];
 #Nobs_array = [ 8, 16, 20 ];
 #Nobs_array = [ 6, 12, 18 ];
-Nobs_array = [ 7 ];
+Nobs_array = [ 7, 8, 10, 15, 20 ];
+#Nobs_array = [ 8 ];
 
 nOrdering = 4;
 
@@ -155,11 +158,11 @@ for nn in range(len(Nobs_array)):
 			if not Mfs: 
 				#Mfs.append(GP(kernel, [basis_function]));
 				Mfs.append(GP(kernel, mode=Mode));
-				Mfs[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
+				Mfs[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff, Opt_Mode= Mode_Opt);
 			else:
 				#Mfs.append( GP(kernel, [Mfs[-1].predict]) );
 				Mfs.append( GP(kernel, [Mfs[i].predict for i in range( len(Mfs) )], mode=Mode) );
-				Mfs[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
+				Mfs[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff, Opt_Mode= Mode_Opt);
 
 
 			yy, vv = Mfs[-1].predict(xx.reshape(-1, 1), return_variance= True) 
@@ -197,7 +200,7 @@ for nn in range(len(Nobs_array)):
 		ss = np.sqrt(np.diag(vv))
 
 		GP_single = GP(kernel, mode=Mode);
-		GP_single.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1), Tychonov_regularization_coeff);
+		GP_single.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1), Tychonov_regularization_coeff, Opt_Mode= Mode_Opt);
 		yy_s, vv_s = GP_single.predict(xx.reshape(-1, 1), return_variance= True) 
 		yy_s = yy_s.flatten();
 		ss_s = np.sqrt(np.diag(vv_s))
@@ -311,7 +314,7 @@ for nn in range(len(Nobs_array)):
 	print()
 
 
-string_save = 'FIGURES/' + Mode + '_';
+string_save = 'FIGURES/' + Mode + '_' + Mode_Opt + '_';
 if Matching:      string_save+= 'matching_';
 if Nested:        string_save+= 'nested_';
 if Equal_size:    string_save+= 'equal_';

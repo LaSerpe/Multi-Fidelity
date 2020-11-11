@@ -28,7 +28,7 @@ class GP:
 		if self.mode != 'S':
 			for i in range(self.Nbasis): 
 				K += self.basis_function[i](x1, x2, return_variance=True)[1]*self.regression_param[i]**2;
-		if type(self.noise_level) is float: K[np.diag_indices_from(K)] += self.noise_level;
+		if type(self.Tychonov_regularization_coeff) is float: K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;
 		return K;
 
 
@@ -43,7 +43,8 @@ class GP:
 		return - np.array(0.5*( y - Basis ).T.dot(alpha) - np.log(np.diag(L)).sum()).flatten() - 0.5*len(x1)*np.log(2*math.pi);
 
 
-	def cost_function(self, theta):
+
+	def cost_function_likelihood(self, theta):
 		self.kernel.theta = theta[0:len(self.kernel.theta)];
 		if (len(self.kernel.theta) != len(theta)): 
 			regression_param = np.array(theta[len(self.kernel.theta)::]);
@@ -56,7 +57,7 @@ class GP:
 			if self.mode != 'S':
 				K += self.basis_v[i]*regression_param[i]**2;
 
-		if type(self.noise_level) is float: K[np.diag_indices_from(K)] += self.noise_level;	
+		if type(self.Tychonov_regularization_coeff) is float: K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;	
 
 		L = cholesky(K, lower=True); 
 		alpha = cho_solve((L, True), b )
@@ -64,12 +65,64 @@ class GP:
 		return np.array(0.5*b.T.dot(alpha) + np.log(np.diag(L)).sum()).flatten();
 
 
-	def fit(self, Training_points, Training_values, noise_level):
 
-		self.noise_level      = copy.deepcopy(noise_level);
+	def cost_function_LOO(self, theta):
+		self.kernel.theta = theta[0:len(self.kernel.theta)];
+		if (len(self.kernel.theta) != len(theta)): 
+			regression_param = np.array(theta[len(self.kernel.theta)::]);
+
+		b = np.copy(self.Training_values);
+		K = self.kernel(self.Training_points);
+
+		for i in range(self.Nbasis): 
+			b -= self.basis[ i ]*regression_param[i];
+			if self.mode != 'S':
+				K += self.basis_v[i]*regression_param[i]**2;
+
+		if type(self.Tychonov_regularization_coeff) is float: K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;	
+
+		L = cholesky(K, lower=True);
+		a = cho_solve((L, True), b )
+
+		elem_pert = np.eye(len(self.Training_points));
+		eps = 0.0;
+		for j in range( len(self.Training_points) ): 
+			da = cho_solve((L, True), elem_pert[:, j] ).reshape(-1, 1)
+
+			beta = a[j]/da[j];
+
+			# K_tmp   = np.delete(np.delete(K, j, 0), j, 1 )
+			# L_tmp   = cholesky(K_tmp, lower=True); 
+			# a_tilde = cho_solve((L_tmp, True), np.delete(b, j, 0) )
+			# a_tilde = np.vstack((a_tilde, np.array([0.0]) ))
+
+			k = self.kernel( self.Training_values[j], self.Training_values );
+			if self.mode == 'G':
+				for i in range(self.Nbasis): 	
+					k += self.k_tmp[:, j]*self.regression_param[i]**2;
+
+			eps += ( b[j, 0] -  k.dot( a + beta*da )  )[0]**2
+
+
+		return eps;
+
+
+
+	def fit(self, Training_points, Training_values, Tychonov_regularization_coeff, Opt_Mode='max_loglikelihood'):
+		self.Tychonov_regularization_coeff = copy.deepcopy(Tychonov_regularization_coeff);
 		self.Training_points  = copy.deepcopy(Training_points);
 		self.Training_values  = copy.deepcopy(Training_values);
 		self.regression_param = np.ones((self.Nbasis, 1));
+
+		if Opt_Mode == 'MLL':
+			cost_function= self.cost_function_likelihood;
+		elif Opt_Mode == 'LOO':
+			cost_function= self.cost_function_LOO;
+			if self.mode == 'G':
+				self.k_tmp = np.zeros((len(self.Training_points), len(self.Training_points)));
+				for j in range(len(self.Training_points)):
+					for i in range(self.Nbasis): 
+						self.k_tmp[j, :] += self.basis_function[i](self.Training_values[j], self.Training_points, True)[1].flatten() 
 
 		MIN = float("inf");
 		bounds = self.kernel.bounds
@@ -86,10 +139,10 @@ class GP:
 		for int_it in range(10):
 			InternalRandomGenerator = np.random.RandomState();
 			x0 = InternalRandomGenerator.uniform(bounds[:, 0], bounds[:, 1]);
-			res = sp.optimize.minimize(self.cost_function, x0, method="L-BFGS-B", bounds=bounds)
-			#res = sp.optimize.minimize(self.cost_function, x0, method="L-BFGS-B", bounds=bounds, tol= 1e-09, options={'disp': None, 'maxcor': 10, 'ftol': 1e-09, 'maxiter': 15000})
-			if (self.cost_function(res.x)[0] < MIN):
-				MIN   = self.cost_function(res.x)
+			res = sp.optimize.minimize(cost_function, x0, method="L-BFGS-B", bounds=bounds)
+			#res = sp.optimize.minimize(cost_function, x0, method="L-BFGS-B", bounds=bounds, tol= 1e-09, options={'disp': None, 'maxcor': 10, 'ftol': 1e-09, 'maxiter': 15000})
+			if (cost_function(res.x)[0] < MIN):
+				MIN   = cost_function(res.x)
 				MIN_x = np.copy(res.x);
 
 		self.kernel.theta     = np.copy(MIN_x[0:len(self.kernel.theta)]);
@@ -99,8 +152,17 @@ class GP:
 		for i in range(self.Nbasis): 
 			b -= self.basis[i]*self.regression_param[i];
 
-		self.L     = cholesky(self.compute_Gramm_matrix(self.Training_points, self.Training_points), lower=True);
+		K = self.kernel(self.Training_points);
+		if self.mode != 'S':
+			for i in range(self.Nbasis): 
+				K += self.basis_v[i]*self.regression_param[i]**2;
+		if type(self.Tychonov_regularization_coeff) is float:
+			K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;
+		self.L     = cholesky(K, lower=True);
+
+		#self.L     = cholesky(self.compute_Gramm_matrix(self.Training_points, self.Training_points), lower=True);
 		self.alpha = cho_solve((self.L, True), b)
+
 
 
 	def predict(self, x1, x2=None, return_variance= False):
@@ -125,7 +187,10 @@ class GP:
 		
 		if return_variance is True:
 			v_r = cho_solve((self.L,   True), k_r  );
-			variance = Basis_v + self.kernel(x1, x2) - k_l.dot(v_r);
+			if np.array_equal(x1, x2):
+				variance = Basis_v + self.kernel(x1) - k_l.dot(v_r);
+			else:
+				variance = Basis_v + self.kernel(x1, x2) - k_l.dot(v_r);
 			return mean, variance;
 		else:
 			return mean;
