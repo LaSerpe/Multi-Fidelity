@@ -83,35 +83,23 @@ class GP:
 
 		L = cholesky(K, lower=True);
 		a = cho_solve((L, True), b )
+		
+		k = self.kernel( self.Training_values, self.Training_values );
+		if self.mode == 'G':
+			for i in range(self.Nbasis): 	
+				k += self.k_tmp[i]*self.regression_param[i]**2;
 
 		elem_pert = np.eye(len(self.Training_points));
 		eps = 0.0;
-		
-		# k = self.kernel( self.Training_values, self.Training_values );
-		# if self.mode == 'G':
-		# 		for i in range(self.Nbasis): 	
-		# 			k += self.k_tmp*self.regression_param[i]**2;
 
 		for j in range( len(self.Training_points) ): 
 			da = cho_solve((L, True), elem_pert[:, j] ).reshape(-1, 1)
-
 			beta = a[j]/da[j];
-
-			# K_tmp   = np.delete(np.delete(K, j, 0), j, 1 )
-			# L_tmp   = cholesky(K_tmp, lower=True); 
-			# a_tilde = cho_solve((L_tmp, True), np.delete(b, j, 0) )
-			# a_tilde = np.vstack((a_tilde, np.array([0.0]) ))
-
-			k = self.kernel( self.Training_values[j], self.Training_values );
-			if self.mode == 'G':
-				for i in range(self.Nbasis): 	
-					k += self.k_tmp[:, j]*self.regression_param[i]**2;
-
-			eps += ( b[j, 0]-beta -  k.dot( a - beta*da )  )[0]**2
+			eps += ( b[j, 0]-beta -  k[:, j].dot( a - beta*da )  )[0]**2
 			#eps += ( b[j, 0]+beta -  k.dot( a + beta*da )  )[0]**2
-			
 			#eps += ( b[j, 0] -  k.dot( a + beta*da )  )[0]**2
 
+		#print(eps)
 		return eps;
 
 
@@ -127,10 +115,10 @@ class GP:
 		elif Opt_Mode == 'LOO':
 			cost_function= self.cost_function_LOO;
 			if self.mode == 'G':
-				self.k_tmp = np.zeros((len(self.Training_points), len(self.Training_points)));
-				for j in range(len(self.Training_points)):
-					for i in range(self.Nbasis): 
-						self.k_tmp[j, :] += self.basis_function[i](self.Training_values[j], self.Training_points, True)[1].flatten() 
+				self.k_tmp = [];
+				for i in range(self.Nbasis):
+					self.k_tmp.append( self.basis_function[i](self.Training_values, self.Training_points, True)[1] )
+
 
 		MIN = float("inf");
 		bounds = self.kernel.bounds
@@ -147,9 +135,9 @@ class GP:
 		for int_it in range(10):
 			InternalRandomGenerator = np.random.RandomState();
 			x0 = InternalRandomGenerator.uniform(bounds[:, 0], bounds[:, 1]);
-			res = sp.optimize.minimize(cost_function, x0, method="L-BFGS-B", bounds=bounds)
-			#res = sp.optimize.minimize(cost_function, x0, method="L-BFGS-B", bounds=bounds, tol= 1e-09, options={'disp': None, 'maxcor': 10, 'ftol': 1e-09, 'maxiter': 15000})
-			if (cost_function(res.x)[0] < MIN):
+			#res = sp.optimize.minimize(cost_function, x0, method="L-BFGS-B", bounds=bounds)
+			res = sp.optimize.minimize(cost_function, x0, method="L-BFGS-B", bounds=bounds, tol= 1e-09, options={'disp': None, 'maxcor': 10, 'ftol': 1e-09, 'maxiter': 15000})
+			if (cost_function(res.x) < MIN):
 				MIN   = cost_function(res.x)
 				MIN_x = np.copy(res.x);
 
