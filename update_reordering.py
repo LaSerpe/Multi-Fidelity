@@ -54,8 +54,7 @@ col = ['r', 'b', 'm'];
 FONTSIZE = 22
 
 Mode='G'
-Mode_Opt = 'MLL';
-#Mode_Opt = 'LOO';
+Mode_Opt = 'LOO';
 Nested= True;
 Matching = False;
 Equal_size= True;
@@ -89,7 +88,7 @@ Nobs_array = [ 3, 5, 15, 20 ];
 #Nobs_array = [ 8, 16, 20 ];
 #Nobs_array = [ 6, 12, 18 ];
 Nobs_array = [ 7, 8, 10, 15, 20 ];
-#Nobs_array = [ 8 ];
+Nobs_array = [ 7 ];
 
 nOrdering = 4;
 
@@ -185,7 +184,18 @@ for nn in range(len(Nobs_array)):
 			ax.set_ylabel('M ' + str(Nm+1))
 			it_frame.add_subplot(ax)
 
+			print('Level ' + str(Nm))
+			print("Score MF: ", Mfs[-1].score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
+			print("Log L MF: ", Mfs[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
+			print("Qcrit MF: ", Mfs[-1].Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() )
+			print('GPM')
+			print(Mfs[-1].kernel)
+			print(Mfs[-1].regression_param.flatten())
+			print()
+			print()
 
+		print()
+		print()
 
 		print("Score MF: ", Mfs[-1].score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
 		print("Log L MF: ", Mfs[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
@@ -311,6 +321,10 @@ for nn in range(len(Nobs_array)):
 			model_order.append( sub_model_ordering.flatten() );
 
 
+	print()
+	print()
+	print()
+	print()
 	print()
 
 

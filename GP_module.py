@@ -86,6 +86,12 @@ class GP:
 
 		elem_pert = np.eye(len(self.Training_points));
 		eps = 0.0;
+		
+		# k = self.kernel( self.Training_values, self.Training_values );
+		# if self.mode == 'G':
+		# 		for i in range(self.Nbasis): 	
+		# 			k += self.k_tmp*self.regression_param[i]**2;
+
 		for j in range( len(self.Training_points) ): 
 			da = cho_solve((L, True), elem_pert[:, j] ).reshape(-1, 1)
 
@@ -101,8 +107,10 @@ class GP:
 				for i in range(self.Nbasis): 	
 					k += self.k_tmp[:, j]*self.regression_param[i]**2;
 
-			eps += ( b[j, 0] -  k.dot( a + beta*da )  )[0]**2
-
+			eps += ( b[j, 0]-beta -  k.dot( a - beta*da )  )[0]**2
+			#eps += ( b[j, 0]+beta -  k.dot( a + beta*da )  )[0]**2
+			
+			#eps += ( b[j, 0] -  k.dot( a + beta*da )  )[0]**2
 
 		return eps;
 
