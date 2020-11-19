@@ -95,12 +95,15 @@ class GP:
 		for j in range( len(self.Training_points) ): 
 			da = cho_solve((L, True), elem_pert[:, j] ).reshape(-1, 1)
 			beta = a[j]/da[j];
-			eps += ( b[j, 0]-beta -  k[:, j].dot( a - beta*da )  )[0]**2
-			#eps += ( b[j, 0]+beta -  k.dot( a + beta*da )  )[0]**2
-			#eps += ( b[j, 0] -  k.dot( a + beta*da )  )[0]**2
+			#eps += ( b[j, 0] -  beta - k[:, j].dot( a - beta*da )  )[0]**2;
+			eps += ( b[j, 0] - k[:, j].dot( a - beta*da )  )[0]**2;
+			#eps += np.linalg.norm(k);
+			#eps += np.linalg.norm(k)**2;
 
 		#print(eps)
 		return eps;
+
+
 
 
 

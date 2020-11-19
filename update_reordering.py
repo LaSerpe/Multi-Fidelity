@@ -46,18 +46,19 @@ def basis_function(x, return_variance= False):
 
 plt.rc('font',family='Times New Roman')
 
+Rnd_seed = 49;
 RandomDataGenerator = np.random.RandomState();
-RandomDataGenerator.seed(1);
+RandomDataGenerator.seed( Rnd_seed );
 
 
 col = ['r', 'b', 'm'];
 FONTSIZE = 22
 
 Mode='G'
-Mode_Opt = 'LOO';
+Mode_Opt = 'MLL';
 Nested= True;
 Matching = False;
-Equal_size= True;
+Equal_size= False;
 
 x_min = 0.0;
 x_max = 1.0;
@@ -66,18 +67,27 @@ Np = 1000;
 xx = np.linspace(x_min, x_max, Np);
 
 
+
 models = [model_1, model_2, model_3, model_4];
-models = [model_1, model_2, model_3, model_9];
 models = [model_1, model_2, model_3, model_6, model_4];
-#models = [model_4];
-#models = [model_6, model_7, model_8, model_4];
+truth = model_4
+
+
+models = [model_9, model_10, model_11, model_12]
+truth = model_12
+
+
+models = [model_Sacher_1, model_Sacher_2]
+truth = model_Sacher_2
+
+
 Nmod = len(models);
 
 Tychonov_regularization_coeff= 1e-4;
 
 gp_restart = 10;
 kernel = ConstantKernel(1.0**2, (1.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, length_scale_bounds=(1.0e-1, 1.0e1)) \
-#+ WhiteKernel(noise_level=1.0e-2, noise_level_bounds=(1.0e-8, 1.0e-0));
++ WhiteKernel(noise_level=1.0e-2, noise_level_bounds=(1.0e-8, 1.0e-0));
 
 
 
@@ -88,7 +98,8 @@ Nobs_array = [ 3, 5, 15, 20 ];
 #Nobs_array = [ 8, 16, 20 ];
 #Nobs_array = [ 6, 12, 18 ];
 Nobs_array = [ 7, 8, 10, 15, 20 ];
-Nobs_array = [ 7 ];
+Nobs_array = [ 3, 4, 5 ];
+#Nobs_array = [ 5 ];
 
 nOrdering = 4;
 
@@ -117,7 +128,7 @@ for nn in range(len(Nobs_array)):
 		if not Equal_size: print("Matching must have equal sized data sets!"); exit();
 		Train_points = [];
 		for i in range(Nmod):
-			RandomDataGenerator.seed(1);
+			RandomDataGenerator.seed( Rnd_seed );
 			Train_points.append( RandomDataGenerator.uniform(x_min, x_max, Nobs_model[i]) );
 
 	elif Nested and nn != 0:
@@ -185,9 +196,9 @@ for nn in range(len(Nobs_array)):
 			it_frame.add_subplot(ax)
 
 			print('Level ' + str(Nm))
-			print("Score MF: ", Mfs[-1].score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
-			print("Log L MF: ", Mfs[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
-			print("Qcrit MF: ", Mfs[-1].Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() )
+			print("Score MF: ", Mfs[-1].score(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1)))
+			print("Log L MF: ", Mfs[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1)))
+			print("Qcrit MF: ", Mfs[-1].Qcriteria(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1)).sum() )
 			print('GPM')
 			print(Mfs[-1].kernel)
 			print(Mfs[-1].regression_param.flatten())
@@ -197,9 +208,9 @@ for nn in range(len(Nobs_array)):
 		print()
 		print()
 
-		print("Score MF: ", Mfs[-1].score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
-		print("Log L MF: ", Mfs[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
-		print("Qcrit MF: ", Mfs[-1].Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() )
+		print("Score MF: ", Mfs[-1].score(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1)))
+		print("Log L MF: ", Mfs[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1)))
+		print("Qcrit MF: ", Mfs[-1].Qcriteria(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1)).sum() )
 		print('GPM')
 		print(Mfs[-1].kernel)
 		print(Mfs[-1].regression_param.flatten())
@@ -215,9 +226,9 @@ for nn in range(len(Nobs_array)):
 		yy_s = yy_s.flatten();
 		ss_s = np.sqrt(np.diag(vv_s))
 
-		print("Score SF: ", GP_single.score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
-		print("Log L SF: ", GP_single.compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)))
-		print("Qcrit SF: ", GP_single.Qcriteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() )
+		print("Score SF: ", GP_single.score(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1)))
+		print("Log L SF: ", GP_single.compute_loglikelihood(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1)))
+		print("Qcrit SF: ", GP_single.Qcriteria(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1)).sum() )
 		print('GPS')
 		print(GP_single.kernel)
 
@@ -235,7 +246,7 @@ for nn in range(len(Nobs_array)):
 
 		ax.scatter(Train_points[-1], observations[-1][:, 0])
 
-		ax.plot(xx, truth(xx), color='k', label='Truth')
+		ax.plot(xx, truth(xx)[0], color='k', label='Truth')
 
 		ax.plot(xx, yy, color='r', label='MF GP')
 		ax.fill_between(xx, yy-ss, yy+ss, facecolor='r', alpha=0.3, interpolate=True)
@@ -255,18 +266,18 @@ for nn in range(len(Nobs_array)):
 		for i in range(len(tmp)): tmp[ np.argsort( model_order[iOrdering] )[i] ] = round( Mfs[-1].regression_param.flatten()[i] , 3)
 		ax = plt.Subplot(it_frame, inner[0])
 
-		# txt = "Score MF: " + str( Mfs[-1].score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1))) + '\n' + \
-		# "L2 er MF: " + str( Mfs[-1].L2normCreteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum() ) + '\n' + \
-		# "Log L MF: " + str( Mfs[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1))[0] ) + '\n\n' + \
+		# txt = "Score MF: " + str( Mfs[-1].score(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1))) + '\n' + \
+		# "L2 er MF: " + str( Mfs[-1].L2normCreteria(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1)).sum() ) + '\n' + \
+		# "Log L MF: " + str( Mfs[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1))[0] ) + '\n\n' + \
 		# str( Mfs[-1].kernel) + '\n' + \
 		# str( tmp ) 
 
-		txt = "Score MF: " + str( round( Mfs[-1].score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)), 3) ) + "  SF: " + \
-		str( round( GP_single.score(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)), 3) ) + '\n' + \
-		"L2err MF: " + str( round( Mfs[-1].L2normCreteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum(), 3) ) + "  SF: " + \
-		str( round( GP_single.L2normCreteria(xx.reshape(-1, 1), truth(xx).reshape(-1, 1)).sum(), 3) ) + '\n' + \
-		"Log L MF: " + str( round( Mfs[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1))[0], 3 ) ) + "  SF: " + \
-		str( round( GP_single.compute_loglikelihood(xx.reshape(-1, 1), truth(xx).reshape(-1, 1))[0], 3 ) ) + '\n\n' + \
+		txt = "Score MF: " + str( round( Mfs[-1].score(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1)), 3) ) + "  SF: " + \
+		str( round( GP_single.score(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1)), 3) ) + '\n' + \
+		"L2err MF: " + str( round( Mfs[-1].L2normCreteria(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1)).sum(), 3) ) + "  SF: " + \
+		str( round( GP_single.L2normCreteria(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1)).sum(), 3) ) + '\n' + \
+		"Log L MF: " + str( round( Mfs[-1].compute_loglikelihood(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1))[0], 3 ) ) + "  SF: " + \
+		str( round( GP_single.compute_loglikelihood(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1))[0], 3 ) ) + '\n\n' + \
 		str( Mfs[-1].kernel ) + '\n' + \
 		str( tmp ) 
 
