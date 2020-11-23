@@ -55,10 +55,11 @@ col = ['r', 'b', 'm'];
 FONTSIZE = 22
 
 Mode='G'
-Mode_Opt = 'MLL';
-Nested= True;
+Mode_Opt = 'MLLW';
+Nested= False;
 Matching = False;
 Equal_size= False;
+Deterministic=False;
 
 x_min = 0.0;
 x_max = 1.0;
@@ -70,15 +71,17 @@ xx = np.linspace(x_min, x_max, Np);
 
 models = [model_1, model_2, model_3, model_4];
 models = [model_1, model_2, model_3, model_6, model_4];
+#models = [model_1, model_2, model_3, model_4, model_4];
+#models = [model_3, model_6, model_4];
 truth = model_4
 
 
-models = [model_9, model_10, model_11, model_12]
-truth = model_12
+# models = [model_9, model_10, model_11, model_12]
+# truth = model_12
 
 
-models = [model_Sacher_1, model_Sacher_2]
-truth = model_Sacher_2
+# models = [model_Sacher_1, model_Sacher_2]
+# truth = model_Sacher_2
 
 
 Nmod = len(models);
@@ -91,15 +94,15 @@ kernel = ConstantKernel(1.0**2, (1.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, l
 
 
 
-#Nobs_array = [ 2, 2, 2 ];
-#Nobs_array = [ 3, 6, 9 ];
-#Nobs_array = [ 4, 8, 16 ];
-Nobs_array = [ 3, 5, 15, 20 ];
-#Nobs_array = [ 8, 16, 20 ];
-#Nobs_array = [ 6, 12, 18 ];
+
+
 Nobs_array = [ 7, 8, 10, 15, 20 ];
 Nobs_array = [ 3, 4, 5 ];
-#Nobs_array = [ 5 ];
+Nobs_array = [ 5, 9, 16 ];
+Nobs_array = [ 3, 5, 10, 15, 20 ];
+Nobs_array = [ 3, 5];
+
+
 
 nOrdering = 4;
 
@@ -127,9 +130,14 @@ for nn in range(len(Nobs_array)):
 	if Matching:
 		if not Equal_size: print("Matching must have equal sized data sets!"); exit();
 		Train_points = [];
-		for i in range(Nmod):
-			RandomDataGenerator.seed( Rnd_seed );
-			Train_points.append( RandomDataGenerator.uniform(x_min, x_max, Nobs_model[i]) );
+
+		if Deterministic:
+			for i in range(Nmod):
+				Train_points.append( np.linspace(x_min, x_max, Nobs_model[i]) );
+		else:
+			for i in range(Nmod):
+				RandomDataGenerator.seed( Rnd_seed );
+				Train_points.append( RandomDataGenerator.uniform(x_min, x_max, Nobs_model[i]) );
 
 	elif Nested and nn != 0:
 		for i in range(Nmod):

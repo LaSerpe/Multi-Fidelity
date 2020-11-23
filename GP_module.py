@@ -107,7 +107,7 @@ class GP:
 
 
 
-	def fit(self, Training_points, Training_values, Tychonov_regularization_coeff, Opt_Mode='max_loglikelihood'):
+	def fit(self, Training_points, Training_values, Tychonov_regularization_coeff, Opt_Mode='MLL'):
 		self.Tychonov_regularization_coeff = copy.deepcopy(Tychonov_regularization_coeff);
 		self.Training_points  = copy.deepcopy(Training_points);
 		self.Training_values  = copy.deepcopy(Training_values);
