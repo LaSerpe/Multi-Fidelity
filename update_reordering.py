@@ -58,8 +58,8 @@ Mode='G'
 Mode_Opt = 'MLLW';
 Nested= False;
 Matching = False;
-Equal_size= False;
-Deterministic=False;
+Equal_size= True;
+Deterministic= False;
 
 x_min = 0.0;
 x_max = 1.0;
@@ -68,7 +68,7 @@ Np = 1000;
 xx = np.linspace(x_min, x_max, Np);
 
 
-
+# Complex Function
 models = [model_1, model_2, model_3, model_4];
 models = [model_1, model_2, model_3, model_6, model_4];
 #models = [model_1, model_2, model_3, model_4, model_4];
@@ -76,12 +76,31 @@ models = [model_1, model_2, model_3, model_6, model_4];
 truth = model_4
 
 
-# models = [model_9, model_10, model_11, model_12]
-# truth = model_12
+# Harmonics
+models = [model_9, model_10, model_11, model_12]
+#models = [model_9, model_10, model_11, model_9, model_10, model_11, model_12]
+truth = model_12
 
-
+# Sacher
 # models = [model_Sacher_1, model_Sacher_2]
 # truth = model_Sacher_2
+
+# models = [U_1, U_2, U_3, U_4s, U_4s, U_4];
+# truth = U_4;
+
+models = [U_5, U_3, U_1, U_6, U_2, U_4, U_7];
+truth = U_7;
+
+plt.figure()
+for i in range( len(models) ):
+	plt.plot(xx, models[i](xx)[0], label=str(i+1));
+plt.legend()
+# plt.show();
+# exit()
+
+
+
+
 
 
 Nmod = len(models);
@@ -95,12 +114,9 @@ kernel = ConstantKernel(1.0**2, (1.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, l
 
 
 
-
-Nobs_array = [ 7, 8, 10, 15, 20 ];
-Nobs_array = [ 3, 4, 5 ];
-Nobs_array = [ 5, 9, 16 ];
 Nobs_array = [ 3, 5, 10, 15, 20 ];
-Nobs_array = [ 3, 5];
+Nobs_array = [ 5, 9, 17 ];
+#Nobs_array = [ 3, 6, 9 ];
 
 
 
@@ -125,7 +141,10 @@ for nn in range(len(Nobs_array)):
 	if Equal_size:
 		Nobs_model   = [Nobs for i in range(Nmod)];
 	else:
-		Nobs_model   = [(Nmod - i)*Nobs for i in range(Nmod)];
+		if not Deterministic:
+			Nobs_model = [(Nmod - i)*Nobs for i in range(Nmod)];
+		else:
+			Nobs_model = [ (Nobs - 1) *2**(Nmod - i - 1) + 1   for i in range(Nmod)];
 
 	if Matching:
 		if not Equal_size: print("Matching must have equal sized data sets!"); exit();
@@ -141,13 +160,18 @@ for nn in range(len(Nobs_array)):
 
 	elif Nested and nn != 0:
 		for i in range(Nmod):
-			Train_points[i] = np.concatenate( (Train_points[i], RandomDataGenerator.uniform(x_min, x_max, Nobs_model[i]-len(Train_points[i])) ), axis=None)
+			if Deterministic:
+				Train_points[i] = np.concatenate( (Train_points[i], np.linspace(x_min, x_max, Nobs_model[i]-len(Train_points[i])) ), axis=None)
+			else:
+				Train_points[i] = np.concatenate( (Train_points[i], RandomDataGenerator.uniform(x_min, x_max, Nobs_model[i]-len(Train_points[i])) ), axis=None)
 
 	else: 
 		Train_points = [];
 		for i in range(Nmod):
-			Train_points.append( RandomDataGenerator.uniform(x_min, x_max, Nobs_model[i]) );
-			#Train_points = [RandomDataGenerator.uniform(x_min, x_max, Nobs_model[i]) for i in range(Nmod)];
+			if Deterministic:
+				Train_points.append( np.linspace(x_min, x_max, Nobs_model[i]) );
+			else:
+				Train_points.append( RandomDataGenerator.uniform(x_min, x_max, Nobs_model[i]) );
 	
 
 	observations = [];
