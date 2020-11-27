@@ -15,9 +15,6 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, Matern, RationalQuadratic,ExpSineSquared, DotProduct, ConstantKernel, WhiteKernel
 
 
-import GPy
-from IPython.display import display
-
 
 from math import pi
 
@@ -77,26 +74,26 @@ truth = model_4
 
 
 # Harmonics
-models = [model_9, model_10, model_11, model_12]
-#models = [model_9, model_10, model_11, model_9, model_10, model_11, model_12]
-truth = model_12
+# models = [model_9, model_10, model_11, model_12]
+# #models = [model_9, model_10, model_11, model_9, model_10, model_11, model_12]
+# truth = model_12
 
 # Sacher
 # models = [model_Sacher_1, model_Sacher_2]
 # truth = model_Sacher_2
 
-# models = [U_1, U_2, U_3, U_4s, U_4s, U_4];
-# truth = U_4;
+models = [U_1, U_2, U_3, U_4s, U_4s, U_4];
+truth = U_4;
 
-models = [U_5, U_3, U_1, U_6, U_2, U_4, U_7];
-truth = U_7;
+# models = [U_5, U_3, U_1, U_6, U_2, U_4, U_7];
+# truth = U_7;
 
 plt.figure()
 for i in range( len(models) ):
 	plt.plot(xx, models[i](xx)[0], label=str(i+1));
 plt.legend()
 # plt.show();
-# exit()
+# 
 
 
 
