@@ -142,7 +142,7 @@ class GP:
 		for i in self.regression_param: 
 			if Opt_Mode == 'MLLW':
 				bounds = np.append(bounds, [[0.0, 1.0]], axis=0)
-			elif not Opt_Mode == 'MLLD' or Opt_Mode == 'MLLS':
+			elif Opt_Mode != 'MLLD' and Opt_Mode != 'MLLS':
 				bounds = np.append(bounds, [[-10.0, 10.0]], axis=0)
 			
 
