@@ -55,7 +55,7 @@ Mode='G'
 Mode_Opt = 'MLLW';
 Nested= False;
 Matching = False;
-Equal_size= True;
+Equal_size= False;
 Deterministic= False;
 
 x_min = 0.0;
@@ -70,6 +70,7 @@ models = [model_1, model_2, model_3, model_4];
 models = [model_1, model_2, model_3, model_6, model_4];
 #models = [model_1, model_2, model_3, model_4, model_4];
 #models = [model_3, model_6, model_4];
+#models = [model_4, model_4, model_4, model_4, model_4];
 truth = model_4
 
 
@@ -82,8 +83,8 @@ truth = model_4
 # models = [model_Sacher_1, model_Sacher_2]
 # truth = model_Sacher_2
 
-models = [U_1, U_2, U_3, U_4s, U_4s, U_4];
-truth = U_4;
+# models = [U_1, U_2, U_3, U_4s, U_4s, U_4];
+# truth = U_4;
 
 # models = [U_5, U_3, U_1, U_6, U_2, U_4, U_7];
 # truth = U_7;
@@ -111,13 +112,14 @@ kernel = ConstantKernel(1.0**2, (1.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, l
 
 
 
-Nobs_array = [ 3, 5, 10, 15, 20 ];
-Nobs_array = [ 5, 9, 17 ];
+Nobs_array = [  5, 10, 15, 17];
+# Nobs_array = [ 5, 9, 17 ];
+Nobs_array = [ 17 ];
 #Nobs_array = [ 3, 6, 9 ];
+# Nobs_array = [ 5 ];
 
 
-
-nOrdering = 4;
+nOrdering = 1;
 
 N_columns = 4;
 fig_frame = [];

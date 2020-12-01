@@ -47,19 +47,22 @@ class GP:
 	def cost_function_likelihood(self, theta):
 		self.kernel.theta = theta[0:len(self.kernel.theta)];
 		if (len(self.kernel.theta) != len(theta)): 
-			regression_param = np.array(theta[len(self.kernel.theta)::]);
-			# if self.Opt_Mode == 'MLLW': w = np.sum(np.absolute(regression_param)) + 1e-16;
-			# else: w = 1.0;
-			if self.Opt_Mode == 'MLLW':  regression_param /= np.sum(np.absolute(regression_param)) + 1e-16;
+			self.regression_param = np.array(theta[len(self.kernel.theta)::]);
+			if self.Opt_Mode == 'MLLW': self.regression_param /= np.sum(np.absolute(self.regression_param)) + 1e-16;
 
 
 		b = np.copy(self.Training_values);
 		K = self.kernel(self.Training_points);
 
+		if self.Opt_Mode == 'MLLS' and self.Nbasis != 0:
+			tmp = np.array([x.flatten() for x in self.basis]).T;
+			self.regression_param = cho_solve((  cholesky(tmp.T.dot(np.linalg.inv(K)).dot(tmp), lower=True), True), tmp.T.dot(np.linalg.inv(K)).dot(self.Training_values) );
+			#print(self.regression_param)
+
 		for i in range(self.Nbasis): 
-			b -= self.basis[ i ]*regression_param[i];
+			b -= self.basis[ i ]*self.regression_param[i];
 			if self.mode != 'S':
-				K += self.basis_v[i]*regression_param[i]**2;
+				K += self.basis_v[i]*self.regression_param[i]**2;
 
 		if type(self.Tychonov_regularization_coeff) is float: K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;	
 
@@ -73,15 +76,15 @@ class GP:
 	def cost_function_LOO(self, theta):
 		self.kernel.theta = theta[0:len(self.kernel.theta)];
 		if (len(self.kernel.theta) != len(theta)): 
-			regression_param = np.array(theta[len(self.kernel.theta)::]);
+			self.regression_param = np.array(theta[len(self.kernel.theta)::]);
 
 		b = np.copy(self.Training_values);
 		K = self.kernel(self.Training_points);
 
 		for i in range(self.Nbasis): 
-			b -= self.basis[ i ]*regression_param[i];
+			b -= self.basis[ i ]*self.regression_param[i];
 			if self.mode != 'S':
-				K += self.basis_v[i]*regression_param[i]**2;
+				K += self.basis_v[i]*self.regression_param[i]**2;
 
 		if type(self.Tychonov_regularization_coeff) is float: K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;	
 
@@ -101,7 +104,7 @@ class GP:
 			beta = a[j]/da[j];
 			#eps += ( b[j, 0] -  beta - k[:, j].dot( a - beta*da )  )[0]**2;
 			eps += ( b[j, 0] - k[:, j].dot( a - beta*da )  )[0]**2;
-			#eps += np.linalg.norm(k);
+			eps += np.linalg.norm(k);
 			#eps += np.linalg.norm(k)**2;
 
 		return eps;
@@ -111,13 +114,18 @@ class GP:
 
 
 	def fit(self, Training_points, Training_values, Tychonov_regularization_coeff, Opt_Mode='MLL'):
+# Mode Opt: 	MLL: Maximum Log Likelihood
+# 			MLLW: Maximum Log Likelihood, weighted average on rhos
+# 			MLLD: Maximum Log Likelihood, rhos are decoupled and computed before maximizing Likelihood
+# 			MLLS: Maximum Log Likelihood, rhos are computed via substitution with weighted averaged linear regression problem
+
 		self.Tychonov_regularization_coeff = copy.deepcopy(Tychonov_regularization_coeff);
 		self.Training_points  = copy.deepcopy(Training_points);
 		self.Training_values  = copy.deepcopy(Training_values);
 		self.regression_param = np.ones((self.Nbasis, 1));
 		self.Opt_Mode = Opt_Mode
 
-		if self.Opt_Mode == 'MLL' or Opt_Mode == 'MLLW':
+		if self.Opt_Mode == 'MLL' or Opt_Mode == 'MLLW' or Opt_Mode == 'MLLD' or Opt_Mode == 'MLLS':
 			cost_function= self.cost_function_likelihood;
 		elif self.Opt_Mode == 'LOO':
 			cost_function= self.cost_function_LOO;
@@ -133,8 +141,8 @@ class GP:
 		bounds = self.kernel.bounds
 		for i in self.regression_param: 
 			if Opt_Mode == 'MLLW':
-				bounds = np.append(bounds, [[0.0, 10.0]], axis=0)
-			else:
+				bounds = np.append(bounds, [[0.0, 1.0]], axis=0)
+			elif not Opt_Mode == 'MLLD' or Opt_Mode == 'MLLS':
 				bounds = np.append(bounds, [[-10.0, 10.0]], axis=0)
 			
 
@@ -144,6 +152,14 @@ class GP:
 			a = self.basis_function[i](self.Training_points, return_variance=True);
 			self.basis.append(   a[0] );
 			self.basis_v.append( a[1] );
+
+		if Opt_Mode == 'MLLD' and self.Nbasis != 0:
+			tmp = np.array([x.flatten() for x in self.basis]).T;
+			self.regression_param = cho_solve((  cholesky(tmp.T.dot(tmp), lower=True), True), tmp.T.dot(self.Training_values) );
+			print(self.regression_param)
+			# self.regression_param = np.linalg.inv( tmp.T.dot(tmp) ).dot(tmp.T).dot(self.Training_values);
+			# print(self.regression_param)
+
 
 		for int_it in range(10):
 			InternalRandomGenerator = np.random.RandomState();
@@ -155,10 +171,10 @@ class GP:
 				MIN_x = np.copy(res.x);
 
 		self.kernel.theta     = np.copy(MIN_x[0:len(self.kernel.theta)]);
-		self.regression_param = np.copy(MIN_x[len(self.kernel.theta)::]);
-
-		if self.Opt_Mode == 'MLLW':
-			self.regression_param /= np.sum(np.absolute(self.regression_param)) + 1e-16;
+		if self.Opt_Mode != 'MLLD' and self.Opt_Mode != 'MLLS':
+			self.regression_param = np.copy(MIN_x[len(self.kernel.theta)::]);
+			if self.Opt_Mode == 'MLLW':
+				self.regression_param /= np.sum(np.absolute(self.regression_param)) + 1e-16;
 
 		b = np.copy(self.Training_values);
 		for i in range(self.Nbasis): 
@@ -174,6 +190,8 @@ class GP:
 
 		#self.L     = cholesky(self.compute_Gramm_matrix(self.Training_points, self.Training_points), lower=True);
 		self.alpha = cho_solve((self.L, True), b)
+
+
 
 
 
