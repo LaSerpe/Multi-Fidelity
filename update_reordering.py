@@ -52,10 +52,10 @@ col = ['r', 'b', 'm'];
 FONTSIZE = 22
 
 Mode='G'
-Mode_Opt = 'MLLS';
+Mode_Opt = 'LOO';
 Nested= False;
 Matching = False;
-Equal_size= False;
+Equal_size= True;
 Deterministic= False;
 
 x_min = 0.0;
@@ -115,7 +115,7 @@ kernel = ConstantKernel(1.0**2, (1.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, l
 Nobs_array = [  5, 10, 15, 17];
 # Nobs_array = [ 5, 9, 17 ];
 #Nobs_array = [ 17 ];
-#Nobs_array = [ 3, 6, 9 ];
+Nobs_array = [ 3, 6, 9 ];
 #Nobs_array = [ 10 ];
 
 
