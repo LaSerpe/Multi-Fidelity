@@ -19,8 +19,6 @@ from sklearn.gaussian_process.kernels import RBF, Matern, RationalQuadratic,ExpS
 from math import pi
 
 import database as database
-#from GP_module import GP
-#from GP_module_M import GP
 from GP_module import GP
 from models_module import *
 
@@ -52,10 +50,10 @@ col = ['r', 'b', 'm'];
 FONTSIZE = 22
 
 Mode='G'
-Mode_Opt = 'LOO';
+Mode_Opt = 'MLLW';
 Nested= False;
 Matching = False;
-Equal_size= True;
+Equal_size= False;
 Deterministic= False;
 
 x_min = 0.0;

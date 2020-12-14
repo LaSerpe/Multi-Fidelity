@@ -73,43 +73,6 @@ class GP:
 
 
 
-	# def cost_function_LOO(self, theta):
-	# 	self.kernel.theta = theta[0:len(self.kernel.theta)];
-	# 	if (len(self.kernel.theta) != len(theta)): 
-	# 		self.regression_param = np.array(theta[len(self.kernel.theta)::]);
-
-	# 	b = np.copy(self.Training_values);
-	# 	K = self.kernel(self.Training_points);
-
-	# 	for i in range(self.Nbasis): 
-	# 		b -= self.basis[ i ]*self.regression_param[i];
-	# 		if self.mode != 'S':
-	# 			K += self.basis_v[i]*self.regression_param[i]**2;
-
-	# 	if type(self.Tychonov_regularization_coeff) is float: K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;	
-
-	# 	L = cholesky(K, lower=True);
-	# 	a = cho_solve((L, True), b )
-		
-	# 	k = self.kernel( self.Training_values, self.Training_values );
-	# 	if self.mode == 'G':
-	# 		for i in range(self.Nbasis): 	
-	# 			k += self.k_tmp[i]*self.regression_param[i]**2;
-
-	# 	elem_pert = np.eye(len(self.Training_points));
-	# 	eps = 0.0;
-
-	# 	for j in range( len(self.Training_points) ): 
-	# 		da = cho_solve((L, True), elem_pert[:, j] ).reshape(-1, 1)
-	# 		beta = a[j]/da[j];
-	# 		#eps += ( b[j, 0] -  beta - k[:, j].dot( a - beta*da )  )[0]**2;
-	# 		eps += ( b[j, 0] - k[:, j].dot( a - beta*da )  )[0]**2;
-	# 		eps += np.linalg.norm(k);
-	# 		#eps += np.linalg.norm(k)**2;
-
-	# 	return eps;
-
-
 
 	def cost_function_LOO(self, theta):
 		self.kernel.theta = theta[0:len(self.kernel.theta)];
@@ -131,17 +94,11 @@ class GP:
 		inv_K = np.linalg.inv(K);
 		
 		mll = 0.0;
-		for j in range( len(self.Training_points) ): 
-
-			#inv_Kii = np.delete(np.delete(np.linalg.inv(K), j, 0), j, 1);
-			
+		for j in range( len(self.Training_points) ): 	
 			si2 = 1.0/inv_K[j, j];
 			mu  = a[j]/si2;
 
 			mll += np.log( si2 ) + mu**2/si2;
-
-		# print(a)
-		# print(mll)
 		return mll;
 
 
