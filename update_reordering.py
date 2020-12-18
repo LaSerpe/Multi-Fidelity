@@ -50,7 +50,9 @@ col = ['r', 'b', 'm'];
 FONTSIZE = 22
 
 Mode='G'
-Mode_Opt = 'MLLW';
+Mode_Opt = 'MLLD';
+LASSO= True;
+
 Nested= False;
 Matching = False;
 Equal_size= False;
@@ -197,11 +199,11 @@ for nn in range(len(Nobs_array)):
 			if not Mfs: 
 				#Mfs.append(GP(kernel, [basis_function]));
 				Mfs.append(GP(kernel, mode=Mode));
-				Mfs[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff, Opt_Mode= Mode_Opt);
+				Mfs[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff, Opt_Mode= Mode_Opt, LASSO=LASSO);
 			else:
 				#Mfs.append( GP(kernel, [Mfs[-1].predict]) );
 				Mfs.append( GP(kernel, [Mfs[i].predict for i in range( len(Mfs) )], mode=Mode) );
-				Mfs[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff, Opt_Mode= Mode_Opt);
+				Mfs[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff, Opt_Mode= Mode_Opt, LASSO=LASSO);
 
 
 			yy, vv = Mfs[-1].predict(xx.reshape(-1, 1), return_variance= True) 
@@ -250,7 +252,7 @@ for nn in range(len(Nobs_array)):
 		ss = np.sqrt(np.diag(vv))
 
 		GP_single = GP(kernel, mode=Mode);
-		GP_single.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1), Tychonov_regularization_coeff, Opt_Mode= Mode_Opt);
+		GP_single.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1), Tychonov_regularization_coeff, Opt_Mode= Mode_Opt, LASSO=LASSO);
 		yy_s, vv_s = GP_single.predict(xx.reshape(-1, 1), return_variance= True) 
 		yy_s = yy_s.flatten();
 		ss_s = np.sqrt(np.diag(vv_s))
@@ -369,6 +371,7 @@ for nn in range(len(Nobs_array)):
 
 
 string_save = 'FIGURES/' + Mode + '_' + Mode_Opt + '_';
+if LASSO:      string_save+= 'LASSO_';
 if Matching:      string_save+= 'matching_';
 if Nested:        string_save+= 'nested_';
 if Equal_size:    string_save+= 'equal_';

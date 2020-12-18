@@ -33,16 +33,16 @@ def model_8(x):
 
 freq = 4.0;
 def model_9(x):
-	return [ 2.0*np.sin(x/x_max*math.pi* ( 2*freq) ) + 0.05*x, 2e-8*np.random.normal(0.0, 1.0)];
+	return [ 2.0*np.sin(x/x_max*math.pi* ( freq) +0.05) + 0.05*x, 2e-8*np.random.normal(0.0, 1.0)];
 
 def model_10(x):
-	return [-2.0*np.sin(x/x_max*math.pi* ( 2*freq) )  + 0.05*x, 2e-8*np.random.normal(0.0, 1.0)];
+	return [-2.0*np.sin(x/x_max*math.pi* ( freq) -0.05)  + 0.05*x, 2e-8*np.random.normal(0.0, 1.0)];
 
 def model_11(x):
-	return [np.sin(x/x_max*math.pi* ( 2*freq+0.4))  + 0.05*x, 2e-8*np.random.normal(0.0, 1.0)];
+	return [np.sin(x/x_max*math.pi* ( 2*freq) +0.05)  + 0.05*x, 2e-8*np.random.normal(0.0, 1.0)];
 
 def model_12(x):
-	return [np.sin(x/x_max*math.pi* ( 2*freq))  + 0.05*x, 2e-8*np.random.normal(0.0, 1.0)];
+	return [np.sin(x/x_max*math.pi* ( 2*freq)), 2e-8*np.random.normal(0.0, 1.0)];
 
 
 

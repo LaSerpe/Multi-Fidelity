@@ -102,9 +102,64 @@ class GP:
 		return mll;
 
 
+	def cost_function_LASSO(self, theta):
+		b = np.copy(self.Training_values);
+		for i in range(self.Nbasis): 
+			b -= self.basis[ i ]*theta[i];
+		return np.linalg.norm(b)**2/len(b);
+
+	def opt_LASSO(self, LAMBDA):
+		MIN = float("inf");
+		con = ({'type': 'ineq', 'fun': lambda x: x}, {'type': 'ineq', 'fun': lambda x:  -np.linalg.norm(x) + LAMBDA})
+		# con = ({'type': 'ineq', 'fun': lambda x:  -np.linalg.norm(x) + t_LASSO})
+		for int_it in range(10):
+			InternalRandomGenerator = np.random.RandomState();
+			x0 = InternalRandomGenerator.uniform(size=(self.Nbasis, 1));
+			res = sp.optimize.minimize(self.cost_function_LASSO, x0, method="SLSQP", constraints=con, tol= 1e-09, options={'disp': None, 'ftol': 1e-09, 'maxiter': 15000})
+			if (self.cost_function_LASSO(res.x) < MIN):
+				MIN   = self.cost_function_LASSO(res.x)
+				MIN_x = np.copy(res.x);
+		return MIN_x;
 
 
-	def fit(self, Training_points, Training_values, Tychonov_regularization_coeff, Opt_Mode='MLL'):
+
+	def cost_function_LASSO_LOO(self, theta, exclude):
+		b = np.copy(self.Training_values);
+		for i in range(self.Nbasis): 
+			b -= self.basis[ i ]*theta[i];
+
+		eps = np.linalg.norm( np.delete( b, exclude, 0) )**2;
+
+		return eps/( len(self.Training_values)-1 ) + self.LAMBDA*np.linalg.norm(theta);
+		
+
+	def opt_LASSO_LOO(self, LAMBDA):
+		self.LAMBDA = LAMBDA;
+		MIN = float("inf");
+		con = ({'type': 'ineq', 'fun': lambda x: x})
+
+		eps = 0.0;
+		for i in range( len(self.Training_values) ):
+
+			for int_it in range(10):
+				InternalRandomGenerator = np.random.RandomState();
+				x0 = InternalRandomGenerator.uniform(size=(self.Nbasis, 1));
+				res = sp.optimize.minimize(self.cost_function_LASSO_LOO, x0, args=(i), method="SLSQP", constraints=con, tol= 1e-09, options={'disp': None, 'ftol': 1e-09, 'maxiter': 15000})
+				if (self.cost_function_LASSO(res.x) < MIN):
+					MIN   = self.cost_function_LASSO_LOO(res.x, i)
+					MIN_x = np.copy(res.x);
+					self.regression_param = np.copy(res.x);
+
+			tmp = 0.0;
+			for j in range(self.Nbasis): 
+				tmp += (self.basis[ j ][i]*self.regression_param[j]);
+			eps += (self.Training_values[i] - tmp )**2;
+
+
+		return MIN_x[0];
+
+
+	def fit(self, Training_points, Training_values, Tychonov_regularization_coeff, Opt_Mode='MLL', LASSO= False):
 # Mode Opt: 	MLL: Maximum Log Likelihood
 # 			MLLW: Maximum Log Likelihood, weighted average on rhos
 # 			MLLD: Maximum Log Likelihood, rhos are decoupled and computed before maximizing Likelihood
@@ -114,7 +169,8 @@ class GP:
 		self.Training_points  = copy.deepcopy(Training_points);
 		self.Training_values  = copy.deepcopy(Training_values);
 		self.regression_param = np.ones((self.Nbasis, 1));
-		self.Opt_Mode = Opt_Mode
+		self.Opt_Mode = Opt_Mode;
+		self.LASSO = LASSO;
 
 		if self.Opt_Mode == 'MLL' or Opt_Mode == 'MLLW' or Opt_Mode == 'MLLD' or Opt_Mode == 'MLLS':
 			cost_function= self.cost_function_likelihood;
@@ -128,7 +184,6 @@ class GP:
 			print("Error! Optimization mode");
 			exit();
 
-		MIN = float("inf");
 		bounds = self.kernel.bounds
 		for i in self.regression_param: 
 			if Opt_Mode == 'MLLW':
@@ -146,12 +201,29 @@ class GP:
 
 		if Opt_Mode == 'MLLD' and self.Nbasis != 0:
 			tmp = np.array([x.flatten() for x in self.basis]).T;
-			self.regression_param = cho_solve((  cholesky(tmp.T.dot(tmp), lower=True), True), tmp.T.dot(self.Training_values) );
-			print(self.regression_param)
-			# self.regression_param = np.linalg.inv( tmp.T.dot(tmp) ).dot(tmp.T).dot(self.Training_values);
-			# print(self.regression_param)
+			self.regression_param = cho_solve((  cholesky(tmp.T.dot(tmp) + self.Tychonov_regularization_coeff*np.eye(self.Nbasis), lower=True), True), tmp.T.dot(self.Training_values) );
+
+			# if LASSO:
+			# 	self.regression_param = self.opt_LASSO(np.linalg.norm(self.regression_param)/2.0);
+
+			if LASSO:
+				MIN = float("inf");
+				con = ({'type': 'ineq', 'fun': lambda x: x})
+				# con = ({'type': 'ineq', 'fun': lambda x:  -np.linalg.norm(x) + t_LASSO})
+				for int_it in range(10):
+					InternalRandomGenerator = np.random.RandomState();
+					x0 = InternalRandomGenerator.uniform();
+					res = sp.optimize.minimize(self.opt_LASSO_LOO, x0, method="SLSQP", constraints=con, tol= 1e-09, options={'disp': None, 'ftol': 1e-09, 'maxiter': 15000})
+					if (self.opt_LASSO_LOO(res.x) < MIN):
+						MIN   = self.opt_LASSO_LOO(res.x)
+						MIN_x = np.copy(res.x);
+
+					self.LAMBDA = MIN_x;
+					self.opt_LASSO_LOO(self.LAMBDA);
 
 
+
+		MIN = float("inf");
 		for int_it in range(10):
 			InternalRandomGenerator = np.random.RandomState();
 			x0 = InternalRandomGenerator.uniform(bounds[:, 0], bounds[:, 1]);
