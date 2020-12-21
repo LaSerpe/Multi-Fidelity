@@ -131,7 +131,7 @@ class GP:
 		eps = np.linalg.norm( np.delete( b, exclude, 0) )**2;
 
 		return eps/( len(self.Training_values)-1 ) + self.LAMBDA*np.linalg.norm(theta);
-		
+
 
 	def opt_LASSO_LOO(self, LAMBDA):
 		self.LAMBDA = LAMBDA;
@@ -156,7 +156,9 @@ class GP:
 			eps += (self.Training_values[i] - tmp )**2;
 
 
-		return MIN_x[0];
+		return eps;
+
+
 
 
 	def fit(self, Training_points, Training_values, Tychonov_regularization_coeff, Opt_Mode='MLL', LASSO= False):
@@ -171,6 +173,9 @@ class GP:
 		self.regression_param = np.ones((self.Nbasis, 1));
 		self.Opt_Mode = Opt_Mode;
 		self.LASSO = LASSO;
+
+
+		if self.Opt_Mode == 'MLL_MC': self.MC_fit(); return;
 
 		if self.Opt_Mode == 'MLL' or Opt_Mode == 'MLLW' or Opt_Mode == 'MLLD' or Opt_Mode == 'MLLS':
 			cost_function= self.cost_function_likelihood;
@@ -253,6 +258,163 @@ class GP:
 
 		#self.L     = cholesky(self.compute_Gramm_matrix(self.Training_points, self.Training_points), lower=True);
 		self.alpha = cho_solve((self.L, True), b)
+
+
+
+	def MC_fit(self):
+
+		cost_function= self.cost_function_likelihood;
+		
+
+		bounds = self.kernel.bounds
+		for i in self.regression_param: 
+			bounds = np.append(bounds, [[-2.0, 2.0]], axis=0)
+			
+
+		self.basis   = [];
+		self.basis_v = [];
+		for i in range(self.Nbasis): 
+			a = self.basis_function[i](self.Training_points, return_variance=True);
+			self.basis.append(   a[0] );
+			self.basis_v.append( a[1] );
+		
+
+		dim_sto = len(self.kernel.theta) + len(self.regression_param);
+		InternalRandomGenerator = np.random.RandomState();
+
+		# position_track = [] 
+		# position_track.append( np.array(InternalRandomGenerator.uniform(0, 1, dim_sto)).T );
+		# PI_track = [];
+		# PI_track.append( - cost_function( [ bounds[k, 0] + (bounds[k, 1] - bounds[k, 0]) * position_track[-1][k]   for k in range(dim_sto)] )[0] );
+
+
+		position_track = [] 
+		position_track.append( np.array(InternalRandomGenerator.uniform(bounds[:, 0], bounds[:, 1])).T );
+		PI_track = [];
+		PI_track.append( - cost_function( position_track[-1] )[0] );
+
+
+		Nburn = 10000;
+		Nmcmc = 50000;
+		alpha = 2.38**2/dim_sto;
+		#alpha = 2.38**2/dim_sto;
+		update_cov = 1000;
+		give_info = 200000;
+
+		#C = alpha*np.eye(dim_sto);
+		C = alpha*np.diag(  np.array([ (bounds[k, 1] - bounds[k, 0])**2/12.0 for k in range(dim_sto)])  );
+		L = cholesky(C, lower=True);
+		mid_acceptance_rate = 0;
+
+		for iOut in [Nburn, Nmcmc]:
+			count = 0;
+
+			if iOut == Nburn: 
+				print('Burn-in phase...')
+			if iOut == Nmcmc: 
+				print('MCMC phase...')
+				C = alpha*np.cov( np.array(position_track[-update_cov:]).T )+0.001*np.eye(dim_sto);
+				L = cholesky(C, lower=True);
+
+
+			for i in range(iOut):
+
+				if( i % update_cov == 0 and iOut == Nburn and i != 0):
+					C = alpha*np.cov( np.array(position_track[-update_cov:]).T )+0.001*np.eye(dim_sto);
+					L = cholesky(C, lower=True);
+
+
+				# if( i % give_info == 0 ):
+				# 	print( float(mid_acceptance_rate) / give_info*100)
+				# 	mid_acceptance_rate = 0;
+	        
+				#position = position_old[:] + 0.05*(InternalRandomGenerator.uniform(bounds[:, 0], bounds[:, 1])-position_old); 
+				position = position_track[-1] + L.dot(np.array(InternalRandomGenerator.normal(0.0, 1.0, dim_sto)).T );
+
+
+				#if any(k < 0.0 for k in position) or any(k > 1.0 for k in position):
+				if any(position[k] < bounds[k, 0] for k in range(dim_sto)) or any(position[k] > bounds[k, 1] for k in range(dim_sto)):
+					position_track.append(position_track[-1]);
+					PI_track.append(PI_track[-1]);
+					continue;
+				else:
+					#PI = - cost_function( [ bounds[k, 0] + (bounds[k, 1] - bounds[k, 0]) * position[k]   for k in range(dim_sto)] )[0];
+					PI = - cost_function( position )[0];
+
+
+				if( (PI - PI_track[-1]) >= np.log(InternalRandomGenerator.uniform()) ):
+					position_track.append(position[:].T);
+					PI_track.append(PI);
+					count += 1;
+					mid_acceptance_rate=mid_acceptance_rate+1;
+				else:
+					position_track.append(position_track[-1]);
+					PI_track.append(PI_track[-1]);
+
+			if iOut == Nburn: 
+				print('BURN-IN acceptance rate: ' + str(float(count)/Nburn*100))
+				pt = np.array(position_track[0:Nburn]);
+				pi = np.array(PI_track[0:Nburn]);
+
+			if iOut == Nmcmc:
+				print('MCMC acceptance rate: ' + str(float(count)/Nmcmc*100))
+				pt = np.array(position_track[Nburn::]);
+				pi = np.array(PI_track[Nburn::]);
+
+
+			import matplotlib.pyplot as plt
+			from matplotlib import cm
+			from sklearn.neighbors import KernelDensity
+
+
+			fig, axs = plt.subplots(dim_sto, dim_sto, sharex=True, figsize=(10,10))#, gridspec_kw={'hspace':0.1})
+
+			for iFig in range(dim_sto):
+				for jFig in range(iFig+1, dim_sto):
+					axs[iFig, jFig].scatter(pt[:, iFig], pt[:, jFig], s=2, c=pi);
+					axs[iFig, jFig].axis([bounds[iFig, 0], bounds[iFig, 1], bounds[jFig, 0], bounds[jFig, 1]]);
+
+
+				axs[iFig, iFig].hist(pt[:, iFig], 50, density=True, alpha=0.75)
+
+				# kde_1 = KernelDensity(kernel='gaussian', bandwidth=0.75).fit(pt[:, iFig].reshape(1, -1)).score_samples(np.linspace(0, 1, 100))
+				# for jFig in range(0, i):
+				# 	kde_2 = KernelDensity(kernel='gaussian', bandwidth=0.75).fit(pt[:, jFig].reshape(1, -1)).score_samples(np.linspace(0, 1, 100))
+
+				# 	axs[iFig, jFig].plot_surface(X, Y, pt[:][iFig]*pt[:][jFig], s=5);
+				# 	#axs[iFig, jFig].axis([0, 1, 0, 1]);
+
+			fig, axs = plt.subplots(dim_sto, sharex=True, figsize=(10,10))
+			for iFig in range(dim_sto):
+				axs[iFig].plot(pt[:, iFig])
+			#axs[iFig].axis([0, len(pt), 0, 1]);
+
+
+# fig.tight_layout()
+# plt.savefig('../PAPER/figure/analysis/EPM_compare_diff.pdf')
+
+
+		mll_index = np.argmax(PI_track[Nburn::]);
+		#tmp = [ bounds[k, 0] + (bounds[k, 1] - bounds[k, 0]) * position_track[mll_index][k]   for k in range(dim_sto)]
+		tmp = position_track[mll_index];
+
+
+		self.kernel.theta     = np.copy(tmp[0:len(self.kernel.theta)]);
+		self.regression_param = np.copy(tmp[len(self.kernel.theta)::]);
+
+		b = np.copy(self.Training_values);
+		for i in range(self.Nbasis): 
+			b -= self.basis[i]*self.regression_param[i];
+
+		K = self.kernel(self.Training_points);
+		if self.mode != 'S':
+			for i in range(self.Nbasis): 
+				K += self.basis_v[i]*self.regression_param[i]**2;
+		if type(self.Tychonov_regularization_coeff) is float:
+			K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;
+		self.L     = cholesky(K, lower=True);
+		self.alpha = cho_solve((self.L, True), b)
+
 
 
 

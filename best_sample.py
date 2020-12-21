@@ -50,7 +50,7 @@ col = ['r', 'b', 'm'];
 FONTSIZE = 22
 
 Mode='G'
-Mode_Opt = 'MLLW';
+Mode_Opt = 'MLL';
 LASSO= False;
 
 Nested= False;
@@ -106,7 +106,7 @@ kernel = ConstantKernel(1.0**2, (1.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, l
 
 Nobs_array = [ 9 ];
 Nobs_array = [ 3 ];
-Ns = 60;
+Ns = 10;
 
 
 nOrdering = 1;

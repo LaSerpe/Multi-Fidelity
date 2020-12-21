@@ -50,7 +50,7 @@ col = ['r', 'b', 'm'];
 FONTSIZE = 22
 
 Mode='G'
-Mode_Opt = 'MLLD';
+Mode_Opt = 'MLL_MC';
 LASSO= True;
 
 Nested= False;
@@ -69,7 +69,7 @@ xx = np.linspace(x_min, x_max, Np);
 models = [model_1, model_2, model_3, model_4];
 models = [model_1, model_2, model_3, model_6, model_4];
 #models = [model_1, model_2, model_3, model_4, model_4];
-#models = [model_3, model_6, model_4];
+#models = [model_4, model_4];
 #models = [model_4, model_4, model_4, model_4, model_4];
 truth = model_4
 
@@ -116,10 +116,10 @@ Nobs_array = [  5, 10, 15, 17];
 # Nobs_array = [ 5, 9, 17 ];
 #Nobs_array = [ 17 ];
 Nobs_array = [ 3, 6, 9 ];
-#Nobs_array = [ 10 ];
+Nobs_array = [ 10 ];
 
 
-nOrdering = 4;
+nOrdering = 1;
 
 N_columns = 4;
 fig_frame = [];
