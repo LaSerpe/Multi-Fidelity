@@ -4,6 +4,10 @@ from scipy.linalg import cholesky, cho_solve, solve_triangular
 import math
 import copy
 
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from sklearn.neighbors import KernelDensity
+
 #from sklearn.gaussian_process.kernels import RBF, Matern, RationalQuadratic,ExpSineSquared, DotProduct, ConstantKernel, WhiteKernel
 
 
@@ -223,8 +227,29 @@ class GP:
 						MIN   = self.opt_LASSO_LOO(res.x)
 						MIN_x = np.copy(res.x);
 
-					self.LAMBDA = MIN_x;
-					self.opt_LASSO_LOO(self.LAMBDA);
+				self.LAMBDA = MIN_x;
+				self.opt_LASSO_LOO(self.LAMBDA);
+				print('Penalty factor LAMBDA: ', self.LAMBDA)
+				print('Min ERR: ', MIN)
+
+
+			# if LASSO:
+			# 	MIN = float("inf");
+			# 	err_l = [];
+			# 	Lam = np.linspace(0.1, 4.0, 100);
+			# 	for lam in Lam:
+			# 		err_l.append( self.opt_LASSO_LOO(lam) );
+			# 		if (err_l[-1] < MIN):
+			# 			MIN   = err_l[-1]
+			# 			MIN_x = np.copy(lam);
+
+			# 	self.LAMBDA = MIN_x;
+			# 	self.opt_LASSO_LOO(self.LAMBDA);
+			# 	print('Penalty factor LAMBDA: ', self.LAMBDA)
+			# 	print('Min ERR: ', MIN)
+			# 	plt.figure()
+			# 	plt.plot(Lam, err_l)
+
 
 
 
@@ -268,7 +293,7 @@ class GP:
 
 		bounds = self.kernel.bounds
 		for i in self.regression_param: 
-			bounds = np.append(bounds, [[-2.0, 2.0]], axis=0)
+			bounds = np.append(bounds, [[-10.0, 10.0]], axis=0)
 			
 
 		self.basis   = [];
@@ -294,7 +319,7 @@ class GP:
 		PI_track.append( - cost_function( position_track[-1] )[0] );
 
 
-		Nburn = 10000;
+		Nburn = 20000;
 		Nmcmc = 50000;
 		alpha = 2.38**2/dim_sto;
 		#alpha = 2.38**2/dim_sto;
@@ -360,11 +385,6 @@ class GP:
 				print('MCMC acceptance rate: ' + str(float(count)/Nmcmc*100))
 				pt = np.array(position_track[Nburn::]);
 				pi = np.array(PI_track[Nburn::]);
-
-
-			import matplotlib.pyplot as plt
-			from matplotlib import cm
-			from sklearn.neighbors import KernelDensity
 
 
 			fig, axs = plt.subplots(dim_sto, dim_sto, sharex=True, figsize=(10,10))#, gridspec_kw={'hspace':0.1})

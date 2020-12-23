@@ -137,6 +137,33 @@ def U_7(x):
 
 
 
+def P0(x):
+	return [x**0, 2e-8*np.random.normal(0.0, 1.0)];
+
+def P1(x):
+	return [x**1, 2e-8*np.random.normal(0.0, 1.0)];
+
+def P2(x):
+	return [x**2, 2e-8*np.random.normal(0.0, 1.0)];
+
+def P3(x):
+	return [x**3, 2e-8*np.random.normal(0.0, 1.0)];
+
+def P4(x):
+	return [x**4, 2e-8*np.random.normal(0.0, 1.0)];
+
+def P5(x):
+	return [x**5, 2e-8*np.random.normal(0.0, 1.0)];
+
+def P6(x):
+	return [x**6, 2e-8*np.random.normal(0.0, 1.0)];
+
+def PT(x):
+	return [2*x**0 + 1*x**1 + 3*x**2 + 2*x**3 + 1*x**4 + 1*x**5 + 3*x**6 + 2e-8*np.random.normal(0.0, 1.0)];
+
+
+
+
 
 
 

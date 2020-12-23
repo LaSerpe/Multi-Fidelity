@@ -50,7 +50,7 @@ col = ['r', 'b', 'm'];
 FONTSIZE = 22
 
 Mode='G'
-Mode_Opt = 'MLL_MC';
+Mode_Opt = 'MLLD';
 LASSO= True;
 
 Nested= False;
@@ -68,7 +68,7 @@ xx = np.linspace(x_min, x_max, Np);
 # Complex Function
 models = [model_1, model_2, model_3, model_4];
 models = [model_1, model_2, model_3, model_6, model_4];
-#models = [model_1, model_2, model_3, model_4, model_4];
+#models = [model_1, model_2, model_6, model_4];
 #models = [model_4, model_4];
 #models = [model_4, model_4, model_4, model_4, model_4];
 truth = model_4
@@ -88,6 +88,9 @@ truth = model_4
 
 # models = [U_5, U_3, U_1, U_6, U_2, U_4, U_7];
 # truth = U_7;
+
+# models = [P0, P1, P2, P3, P4, P5, P6];
+# truth = PT;
 
 plt.figure()
 for i in range( len(models) ):
@@ -116,7 +119,7 @@ Nobs_array = [  5, 10, 15, 17];
 # Nobs_array = [ 5, 9, 17 ];
 #Nobs_array = [ 17 ];
 Nobs_array = [ 3, 6, 9 ];
-Nobs_array = [ 10 ];
+Nobs_array = [ 2 ];
 
 
 nOrdering = 1;
@@ -141,9 +144,12 @@ for nn in range(len(Nobs_array)):
 		Nobs_model   = [Nobs for i in range(Nmod)];
 	else:
 		if not Deterministic:
-			Nobs_model = [(Nmod - i)*Nobs for i in range(Nmod)];
+			#Nobs_model = [(Nmod - i)*Nobs for i in range(Nmod)];
+			Nobs_model   = [10*Nobs for i in range(Nmod)];
+			Nobs_model[-1] = Nobs;
 		else:
 			Nobs_model = [ (Nobs - 1) *2**(Nmod - i - 1) + 1   for i in range(Nmod)];
+
 
 	if Matching:
 		if not Equal_size: print("Matching must have equal sized data sets!"); exit();
