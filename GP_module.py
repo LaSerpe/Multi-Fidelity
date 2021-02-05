@@ -166,10 +166,12 @@ class GP:
 
 
 	def fit(self, Training_points, Training_values, Tychonov_regularization_coeff, Opt_Mode='MLL', LASSO= False):
-# Mode Opt: 	MLL: Maximum Log Likelihood
-# 			MLLW: Maximum Log Likelihood, weighted average on rhos
-# 			MLLD: Maximum Log Likelihood, rhos are decoupled and computed before maximizing Likelihood
-# 			MLLS: Maximum Log Likelihood, rhos are computed via substitution with weighted averaged linear regression problem
+# Mode Opt: 	
+#			MLL:  (ML) Maximum Log Likelihood
+#			LOO:  (LOO) Maximum Log Likelihood
+# 			MLLW: (WA). Maximum Log Likelihood, weighted average on rhos
+# 			MLLD: (DL) Maximum Log Likelihood, rhos are decoupled and computed before maximizing Likelihood
+# 			MLLS: (LS) Maximum Log Likelihood, rhos are computed via substitution with weighted averaged linear regression problem
 
 		self.Tychonov_regularization_coeff = copy.deepcopy(Tychonov_regularization_coeff);
 		self.Training_points  = copy.deepcopy(Training_points);
