@@ -67,8 +67,8 @@ def Hartmann(x):
 	f = 0.0;
 	for i in range(4):
 		tmp = 0.0;
-		for j in range(1):
-			tmp -= A[i][j]*(x - P[i][j])**2;
+		for j in range(len(x)):
+			tmp -= A[i][j]*(x[j] - P[i][j])**2;
 
 		f += alpha[i]*np.exp(tmp)
 	return f;
@@ -79,44 +79,32 @@ def U_1(x):
 
 def U_2(x):
 	y= U_1(x)[0];
-	for i in range(1):
-		y = 0.5* (Hartmann(x)**2/y + y );
+	y = 0.5* (Hartmann(x)**2/y + y );
 	return [y, 2e-8*np.random.normal(0.0, 1.0)];
 
 def U_3(x):
 	y= U_1(x)[0];
-	for i in range(2):
-		y = 0.5* (Hartmann(x)**2/y + y );
+	y = 0.5* (Hartmann(x)**2/y + y );
 	return [y, 2e-8*np.random.normal(0.0, 1.0)];
 
 def U_4(x):
 	y= U_1(x)[0];
-	for i in range(3):
-		y = 0.5* (Hartmann(x)**2/y + y );
+	y = 0.5* (Hartmann(x)**2/y + y );
 	return [y, 2e-8*np.random.normal(0.0, 1.0)];
-
-def U_4s(x):
-	y= U_1(x)[0];
-	for i in range(3):
-		y = 0.5* (Hartmann(x)**2/y + y );
-	return [0.5*y, 2e-8*np.random.normal(0.0, 1.0)];
 
 def U_5(x):
 	y= U_1(x)[0];
-	for i in range(4):
-		y = 0.5* (Hartmann(x)**2/y + y );
+	y = 0.5* (Hartmann(x)**2/y + y );
 	return [y, 2e-8*np.random.normal(0.0, 1.0)];
 
 def U_6(x):
 	y= U_1(x)[0];
-	for i in range(5):
-		y = 0.5* (Hartmann(x)**2/y + y );
+	y = 0.5* (Hartmann(x)**2/y + y );
 	return [y, 2e-8*np.random.normal(0.0, 1.0)];
 
 def U_7(x):
 	y= U_1(x)[0];
-	for i in range(6):
-		y = 0.5* (Hartmann(x)**2/y + y );
+	y = 0.5* (Hartmann(x)**2/y + y );
 	return [y, 2e-8*np.random.normal(0.0, 1.0)];
 
 
