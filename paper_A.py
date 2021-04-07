@@ -326,24 +326,25 @@ for iDataRandomization in range(NdataRandomization):
 
 
 	
+av_score_IR = np.zeros((nOrdering, len(Nobs_array)));
+st_score_IR = np.zeros((nOrdering, len(Nobs_array)));
+
+av_score_SR = np.zeros((nOrdering, len(Nobs_array)));
+st_score_SR = np.zeros((nOrdering, len(Nobs_array)));
+
+av_score_SF = np.zeros((nOrdering, len(Nobs_array)));
+st_score_SF = np.zeros((nOrdering, len(Nobs_array)));
 
 for j in range(len(Nobs_array)):
 	for iOrdering in range(nOrdering):
-		f_IR = open('PRELIMINARY_PAPER_A/regression_params_IR_n' + str(Nobs_array[j]) + '_o' + str(iOrdering) + '.dat', 'w')
-		f_SR = open('PRELIMINARY_PAPER_A/regression_params_SR_n' + str(Nobs_array[j]) + '_o' + str(iOrdering) + '.dat', 'w')
-		f_SF = open('PRELIMINARY_PAPER_A/regression_params_SF_n' + str(Nobs_array[j]) + '_o' + str(iOrdering) + '.dat', 'w')
+		f_IR = open('PRELIMINARY_PAPER_A/regression_params_IR_' + Mode + '_' + Mode_Opt + '_n'+ str(Nobs_array[j]) + '_o' + str(iOrdering) + '.dat', 'w')
+		f_SR = open('PRELIMINARY_PAPER_A/regression_params_SR_' + Mode + '_' + Mode_Opt + '_n'+ str(Nobs_array[j]) + '_o' + str(iOrdering) + '.dat', 'w')
+		f_SF = open('PRELIMINARY_PAPER_A/regression_params_SF_' + Mode + '_' + Mode_Opt + '_n'+ str(Nobs_array[j]) + '_o' + str(iOrdering) + '.dat', 'w')
 
-		reg_IR = [];
-		reg_SR = [];
-		reg_SF = [];
+		reg_IR = []; reg_SR = []; reg_SF = [];
+		sco_IR = []; sco_SR = []; sco_SF = [];
+		kp_IR  = []; kp_SR  = []; kp_SF  = [];
 
-		sco_IR = [];
-		sco_SR = [];
-		sco_SF = [];
-
-		kp_IR = [];
-		kp_SR = [];
-		kp_SF = [];
 
 		for i in MF_performance[iOrdering::nOrdering]: reg_IR.append(i[j].regression_param); sco_IR.append(i[j].score); kp_IR.append(i[j].kernel_param);
 		for i in LG_performance[iOrdering::nOrdering]: reg_SR.append(i[j].regression_param); sco_SR.append(i[j].score); kp_SR.append(i[j].kernel_param);
@@ -352,17 +353,20 @@ for j in range(len(Nobs_array)):
 		f_IR.write('Mean: ' + str( np.array(reg_IR).mean(axis=0) ) + '\n');
 		f_IR.write('Std:  ' + str( np.array(reg_IR).std(axis=0) ) + '\n');
 		f_IR.write('Mean score:  ' + str( np.array(sco_IR).mean(axis=0) ) + '    Std score:  ' +  str( np.array(sco_IR).std(axis=0) ) + '\n');
-		f_IR.write('Mean reg p:  ' + str( np.array(kp_IR ).mean(axis=0) ) + '    Std reg p:  ' +  str( np.array(kp_IR ).std(axis=0) ) + '\n');
+		f_IR.write('Mean ker p:  ' + str( np.array(kp_IR ).mean(axis=0) ) + '    Std reg p:  ' +  str( np.array(kp_IR ).std(axis=0) ) + '\n');
+		av_score_IR[iOrdering, j] = np.array(sco_IR ).mean(axis=0); st_score_IR[iOrdering, j] = np.array(sco_IR ).std(axis=0);
 
 		f_SR.write('Mean: ' + str( np.array(reg_SR).mean(axis=0) ) + '\n');
 		f_SR.write('Std:  ' + str( np.array(reg_SR).std(axis=0) ) + '\n');
 		f_SR.write('Mean score:  ' + str( np.array(sco_SR).mean(axis=0) ) + '    Std score:  ' +  str( np.array(sco_SR).std(axis=0) ) + '\n');
-		f_SR.write('Mean reg p:  ' + str( np.array(kp_SR ).mean(axis=0) ) + '    Std reg p:  ' +  str( np.array(kp_SR ).std(axis=0) ) + '\n');
+		f_SR.write('Mean ker p:  ' + str( np.array(kp_SR ).mean(axis=0) ) + '    Std reg p:  ' +  str( np.array(kp_SR ).std(axis=0) ) + '\n');
+		av_score_SR[iOrdering, j] = np.array(sco_SR ).mean(axis=0); st_score_SR[iOrdering, j] = np.array(sco_SR ).std(axis=0);
 
 		f_SF.write('Mean: ' + str( np.array(reg_SF).mean(axis=0) ) + '\n');
 		f_SF.write('Std:  ' + str( np.array(reg_SF).std(axis=0) ) + '\n');
 		f_SF.write('Mean score:  ' + str( np.array(sco_SF).mean(axis=0) ) + '    Std score:  ' +  str( np.array(sco_SF).std(axis=0) ) + '\n');
-		f_SF.write('Mean reg p:  ' + str( np.array(kp_SF ).mean(axis=0) ) + '    Std reg p:  ' +  str( np.array(kp_SF ).std(axis=0) ) + '\n');
+		f_SF.write('Mean ker p:  ' + str( np.array(kp_SF ).mean(axis=0) ) + '    Std reg p:  ' +  str( np.array(kp_SF ).std(axis=0) ) + '\n');
+		av_score_SF[iOrdering, j] = np.array(sco_SF ).mean(axis=0); st_score_SF[iOrdering, j] = np.array(sco_SF ).std(axis=0);
 
 		f_IR.write('N reg param, score, kern params\n');
 		f_SR.write('N reg param, score, kern params\n');
@@ -397,10 +401,43 @@ for j in range(len(Nobs_array)):
 f_IR.close()
 f_SR.close()
 
-exit()
 
 
-#plt.show()
+for iOrdering in range(nOrdering):
+	string_save = 'PRELIMINARY_PAPER_A/' + Mode + '_' + Mode_Opt + '_o' + str(iOrdering) + '_';
+	if LASSO:      string_save+= 'LASSO_';
+	if Matching:      string_save+= 'matching_';
+	if Nested:        string_save+= 'nested_';
+	if Equal_size:    string_save+= 'equal_';
+
+	plt.figure()
+	plt.plot(av_score_IR[iOrdering, :], color='r', label='IR')
+	plt.plot(av_score_SR[iOrdering, :], color='b', label='SR')
+	plt.plot(av_score_SF[iOrdering, :], color='g', label='SF')
+
+	plt.xlabel(r'$N^l$', fontsize=FONTSIZE);
+	plt.ylabel(r'$score_{AVG}$', fontsize=FONTSIZE);
+	plt.xticks(np.arange(0, len(Nobs_array)), [str(j) for j in Nobs_array], fontsize=FONTSIZE);
+	plt.yticks(fontsize=FONTSIZE);
+
+	plt.legend(prop={'size': FONTSIZE}, frameon=False)
+	plt.tight_layout()
+	plt.savefig( string_save + 'nPoints_behavior_AVG.pdf');
+
+	plt.figure()
+	plt.plot(st_score_IR[iOrdering, :], color='r', label='IR')
+	plt.plot(st_score_SR[iOrdering, :], color='b', label='SR')
+	plt.plot(st_score_SF[iOrdering, :], color='g', label='SF')
+
+	plt.xlabel(r'$N^l$', fontsize=FONTSIZE);
+	plt.ylabel(r'$score_{STD}$', fontsize=FONTSIZE);
+	plt.xticks(np.arange(0, len(Nobs_array)), [str(j) for j in Nobs_array], fontsize=FONTSIZE);
+	plt.yticks(fontsize=FONTSIZE);
+
+	plt.legend(prop={'size': FONTSIZE}, frameon=False)
+	plt.tight_layout()
+	plt.savefig( string_save + 'nPoints_behavior_STD.pdf');
+
 exit()
 
 

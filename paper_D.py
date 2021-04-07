@@ -22,7 +22,7 @@ from GP_module import GP
 from models_module import *
 
 import subprocess
-command = ['rm PRELIMINARY_PAPER_A/*']
+command = ['rm PRELIMINARY_PAPER_D/*']
 subprocess.call(command, shell=True)
 
 def basis_function(x, return_variance= False):
@@ -54,14 +54,12 @@ Mode_Opt_list  = ['MLL', 'LOO', 'MLLD', 'MLLW', 'MLLA', 'MLLS'];
 LASSO_list     = [False, False, True, False, False, False];
 Mode='G'#Don't touch this for the paper
 
-Nobs_array = [ 6, 9, 12, 15 ];
-NdataRandomization= 100;
-Nested= False;
-Matching = False;
-Equal_size= False;
-Deterministic= False;
+BudgetMax = 50;
+Nobs_array = [ 2 ];
+NdataRandomization= 1;
 
-Activate_histogram_plot=False
+
+Activate_histogram_plot=True
 
 x_min = 0.0;
 x_max = 1.0;
@@ -83,17 +81,13 @@ kernel = ConstantKernel(1.0**2, (1.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, l
 
 
 
-# for iMode in range(len(Mode_Opt_list)):
-
-# 	Mode_Opt = Mode_Opt_list[ iMode ];
-# 	LASSO= LASSO_list[iMode];
 
 Mode_Opt = Mode_Opt_list[ 0 ];
 LASSO= LASSO_list[0];
 
 
 
-nOrdering = 2;
+nOrdering = 1; # Don't touch or this!!!! Could cause problems with the re-sampling
 N_columns = 2;
 if Activate_histogram_plot: N_columns += 1;
 
@@ -115,62 +109,99 @@ for iDataRandomization in range(NdataRandomization):
 	Train_points = [];
 
 	for iOrdering in range(nOrdering):
-		MF_performance.append([PerformanceRecord() for i in range(len(Nobs_array))]);
-		SF_performance.append([PerformanceRecord() for i in range(len(Nobs_array))]);
-		LG_performance.append([PerformanceRecord() for i in range(len(Nobs_array))]);
+		MF_performance.append([PerformanceRecord() for i in range(BudgetMax)]);
+		SF_performance.append([PerformanceRecord() for i in range(BudgetMax)]);
+		LG_performance.append([PerformanceRecord() for i in range(BudgetMax)]);
 
 
 	fig_frame = [];
-	for iOrdering in range( len(Nobs_array) ):
+	for iOrdering in range( BudgetMax ):
 		fig_frame.append(plt.figure(figsize=(14, 8)));
 	outer = gridspec.GridSpec( nOrdering, N_columns, wspace= 0.2, hspace= 0.3 );
 
-	for nn in range(len(Nobs_array)):
+
+	Nobs_model     = [ Nobs_array[0] for i in range(Nmod)]; # They start with equal size !!!!!!!!!!!
+	#Nobs_model[-1] = Nobs_array[0];
+
+	for nn in range(BudgetMax):
 	
-		Nobs = Nobs_array[nn];
 		model_order = [];
 		model_order.append(np.arange(Nmod).flatten());
 		
-		print("Number of observations " + str(Nobs) + " iRand " + str(iDataRandomization));
-		print("Generating synthetic data")
+		print("Budget allocated " + str(float(nn)/(BudgetMax-1)) + " iRand " + str(iDataRandomization));
+		print("Re-sampling...")
 
-		if Equal_size:
-			Nobs_model   = [Nobs for i in range(Nmod)];
-		else:
-			if not Deterministic:
-				Nobs_model = [(Nmod - i)*Nobs for i in range(Nmod)];
-				#Nobs_model   = [10*Nobs for i in range(Nmod)];
-				#Nobs_model[-1] = Nobs;
-			else:
-				Nobs_model = [ (Nobs - 1) *2**(Nmod - i - 1) + 1   for i in range(Nmod)];
+		highlight = np.zeros((Nmod, 1));
+		if nn != 0:
+			# for i in range(Nmod):
+			# 	Train_points[i] = np.append( Train_points[i], RandomDataGenerator.uniform(x_min, x_max, 1)[0] )
+			# 	Nobs_model[i] += 1;
+
+			TrainHat = [];
+			for i in Train_points[-1]:
+				tmp = [];
+				for j in range(Nmod-1):
+					tmp.append( Mfs[j].predict(np.array([i]).reshape(-1, 1), return_variance= False) );
+
+				TrainHat.append( np.var(np.array(tmp)) );
+			TrainHat = np.array(TrainHat);
+
+			kernel_hat = ConstantKernel(1.0**2, (1.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, length_scale_bounds=(1.0e-1, 1.0e1));
+			GP_hat = GP(kernel_hat, mode=Mode);
+			GP_hat.fit(Train_points[-1].reshape(-1, 1), TrainHat.reshape(-1, 1), Tychonov_regularization_coeff, Opt_Mode= Mode_Opt, LASSO=LASSO);
+
+			#mu_hat, sigma_hat = GP_hat.predict(xx.reshape(-1, 1), return_variance= True) 
+
+			def obj1(x): a,b = Mfs[-1].predict(np.array([x]).reshape(-1, 1), return_variance= True); return b[0];
+			def obj2(x): a,b =  GP_hat.predict(np.array([x]).reshape(-1, 1), return_variance= True); return 0;#b[0];
+			def obj(x): a = 1.0; return - (a+obj1(x)) * (a+obj2(x));
+
+			MIN = float("inf");
+			bnd = ((x_min, x_max),);
+			for int_it in range(10):
+				x0 = np.random.uniform(x_min, x_max);
+				res = sp.optimize.minimize(obj, x0, method="L-BFGS-B", bounds=bnd, tol= 1e-09, options={'disp': None, 'maxcor': 10, 'ftol': 1e-09, 'maxiter': 15000})
+				if (obj(res.x) < MIN):
+					MIN   = obj(res.x)
+					MIN_x = np.copy(res.x);
+			print(MIN_x)
 
 
-		if Matching:
-			if not Equal_size: print("Matching must have equal sized data sets!"); exit();
-			Train_points = [];
-
-			if Deterministic:
+			if obj2(MIN_x) > obj1(MIN_x):
 				for i in range(Nmod):
-					Train_points.append( np.linspace(x_min, x_max, Nobs_model[i]) );
+					Train_points[i] = np.append( Train_points[i], MIN_x )
+					Nobs_model[i] += 1;
+					highlight[i]   = 1;
 			else:
-				for i in range(Nmod):
-					RandomDataGenerator.seed( Rnd_seed );
-					Train_points.append( RandomDataGenerator.uniform(x_min, x_max, Nobs_model[i]) );
+				delta_i = []; 
+				for i in range(len(Mfs[-1].regression_param)):
+					MfOtp = copy.deepcopy(Mfs[-1]);
+					MfOtp.regression_param[i] = 0.0;
+					print(MfOtp.regression_param.flatten());
+					delta_i.append( (obj1(MIN_x) - MfOtp.predict(np.array( MIN_x ).reshape(-1, 1), return_variance= True)[1][0,0]) );
 
-		elif Nested and nn != 0:
-			for i in range(Nmod):
-				if Deterministic:
-					Train_points[i] = np.concatenate( (Train_points[i], np.linspace(x_min, x_max, Nobs_model[i]-len(Train_points[i])) ), axis=None)
-				else:
-					Train_points[i] = np.concatenate( (Train_points[i], RandomDataGenerator.uniform(x_min, x_max, Nobs_model[i]-len(Train_points[i])) ), axis=None)
+				# MfOtp = copy.deepcopy(Mfs[-1]);
+				# for i in range(len(Mfs[-1].regression_param)): MfOtp.regression_param[i] = 0.0;
+				# print(MfOtp.regression_param.flatten());	
+				# delta_i.append( (MfOtp.predict(np.array( MIN_x ).reshape(-1, 1), return_variance= True)[1][0,0]) );	#sigma_L-(sigma_L-contributionfromL)		
+
+				# print("Delta")
+				# print(MfOtp.predict(np.array( MIN_x ).reshape(-1, 1), return_variance= True)[1][0,0])
+				# print(np.shape(MfOtp.predict(np.array( MIN_x ).reshape(-1, 1), return_variance= True)[1][0,0]))
+				# print(np.array(delta_i))
+				#print(np.array(delta_i)/np.sum(np.array(delta_i)))
+				Train_points[ delta_i.index(max(delta_i)) ]  = np.append( Train_points[ delta_i.index(max(delta_i)) ], MIN_x )
+				Nobs_model[   delta_i.index(max(delta_i)) ] += 1;
+				highlight[    delta_i.index(max(delta_i)) ]  = 1;
+
+
 
 		else: 
 			Train_points = [];
 			for i in range(Nmod):
-				if Deterministic:
-					Train_points.append( np.linspace(x_min, x_max, Nobs_model[i]) );
-				else:
-					Train_points.append( RandomDataGenerator.uniform(x_min, x_max, Nobs_model[i]) );
+				Train_points.append( RandomDataGenerator.uniform(x_min, x_max, Nobs_model[i]) );
+
+
 		
 
 		observations = [];
@@ -184,7 +215,7 @@ for iDataRandomization in range(NdataRandomization):
 
 
 		it_frame = fig_frame[nn];
-		it_frame.suptitle('N points ' + str(Nobs) );
+		it_frame.suptitle('Budget ' + str(float(nn)/(BudgetMax-1)) );
 
 		for iOrdering in range(nOrdering):	
 
@@ -201,6 +232,7 @@ for iDataRandomization in range(NdataRandomization):
 					Mfs.append( GP(kernel, [Mfs[i].predict for i in range( len(Mfs) )], mode=Mode) );
 					Mfs[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff, Opt_Mode= Mode_Opt, LASSO=LASSO);
 				print(len(Train_points[Nm]), Mfs[-1].regression_param)
+
 
 			MGs = [];
 			print('LeGratiet regression param');
@@ -219,14 +251,17 @@ for iDataRandomization in range(NdataRandomization):
 
 				ax = plt.Subplot(it_frame, inner[ np.where(np.array(model_order[iOrdering]) == Nm )[0][0] ])
 
-				# yy, vv = Mfs[ np.where(np.array(model_order[iOrdering]) == Nm )[0][0] ].predict(xx.reshape(-1, 1), return_variance= True) 
-				# yy = yy.flatten();
-				# ss = np.sqrt(np.diag(vv))				
-				# ax.plot(xx, yy, color='r', label='GP')
-				# ax.fill_between(xx, yy-ss, yy+ss, facecolor='r', alpha=0.3, interpolate=True)
+				yy, vv = Mfs[ np.where(np.array(model_order[iOrdering]) == Nm )[0][0] ].predict(xx.reshape(-1, 1), return_variance= True) 
+				yy = yy.flatten();
+				ss = np.sqrt(np.diag(vv))				
+				ax.plot(xx, yy, color='r', label='GP')
+				ax.fill_between(xx, yy-ss, yy+ss, facecolor='r', alpha=0.3, interpolate=True)
 
 				ax.scatter(Train_points[Nm], observations[Nm][:, 0])
 				ax.plot(xx, models[Nm](xx)[:][0], color='k', label='T')
+
+				if (highlight[Nm] == 1): ax.scatter(Train_points[Nm][-1], observations[Nm][-1, 0], marker='v', color='r')
+
 
 				if Nm == Nmod-1: 
 					ax.tick_params(axis='both', labelsize=FONTSIZE)
@@ -253,6 +288,7 @@ for iDataRandomization in range(NdataRandomization):
 			yy, vv = Mfs[-1].predict(xx.reshape(-1, 1), return_variance= True) 
 			yy = yy.flatten();
 			ss = np.sqrt(np.diag(vv))
+
 
 			yg, vg = MGs[-1].predict(xx.reshape(-1, 1), return_variance= True) 
 			yg = yg.flatten();
@@ -308,42 +344,40 @@ for iDataRandomization in range(NdataRandomization):
 				it_frame.add_subplot(ax)
 
 
-			model_order.append(np.arange(Nmod).flatten());
-			model_order[-1][2] = 3;
-			model_order[-1][3] = 2;
+			# model_order.append(np.arange(Nmod).flatten());
+			# model_order[-1][2] = 3;
+			# model_order[-1][3] = 2;
 
 
 
-	string_save = 'PRELIMINARY_PAPER_A/' + str(iDataRandomization) + '_' + Mode + '_' + Mode_Opt + '_';
+	string_save = 'PRELIMINARY_PAPER_D/' + str(iDataRandomization) + '_' + Mode + '_' + Mode_Opt + '_';
 	if LASSO:      string_save+= 'LASSO_';
-	if Matching:      string_save+= 'matching_';
-	if Nested:        string_save+= 'nested_';
-	if Equal_size:    string_save+= 'equal_';
 
-	for nn in range(len(Nobs_array)):
+	for nn in range(BudgetMax):
 		fig_frame[nn].tight_layout()
 		fig_frame[nn].savefig( string_save + str(nn) + '.pdf')
 
 
 	
+av_score_IR = np.zeros((nOrdering, len(Nobs_array)));
+st_score_IR = np.zeros((nOrdering, len(Nobs_array)));
+
+av_score_SR = np.zeros((nOrdering, len(Nobs_array)));
+st_score_SR = np.zeros((nOrdering, len(Nobs_array)));
+
+av_score_SF = np.zeros((nOrdering, len(Nobs_array)));
+st_score_SF = np.zeros((nOrdering, len(Nobs_array)));
 
 for j in range(len(Nobs_array)):
 	for iOrdering in range(nOrdering):
-		f_IR = open('PRELIMINARY_PAPER_A/regression_params_IR_n' + str(Nobs_array[j]) + '_o' + str(iOrdering) + '.dat', 'w')
-		f_SR = open('PRELIMINARY_PAPER_A/regression_params_SR_n' + str(Nobs_array[j]) + '_o' + str(iOrdering) + '.dat', 'w')
-		f_SF = open('PRELIMINARY_PAPER_A/regression_params_SF_n' + str(Nobs_array[j]) + '_o' + str(iOrdering) + '.dat', 'w')
+		f_IR = open('PRELIMINARY_PAPER_D/regression_params_IR_' + Mode + '_' + Mode_Opt + '_n'+ str(Nobs_array[j]) + '_o' + str(iOrdering) + '.dat', 'w')
+		f_SR = open('PRELIMINARY_PAPER_D/regression_params_SR_' + Mode + '_' + Mode_Opt + '_n'+ str(Nobs_array[j]) + '_o' + str(iOrdering) + '.dat', 'w')
+		f_SF = open('PRELIMINARY_PAPER_D/regression_params_SF_' + Mode + '_' + Mode_Opt + '_n'+ str(Nobs_array[j]) + '_o' + str(iOrdering) + '.dat', 'w')
 
-		reg_IR = [];
-		reg_SR = [];
-		reg_SF = [];
+		reg_IR = []; reg_SR = []; reg_SF = [];
+		sco_IR = []; sco_SR = []; sco_SF = [];
+		kp_IR  = []; kp_SR  = []; kp_SF  = [];
 
-		sco_IR = [];
-		sco_SR = [];
-		sco_SF = [];
-
-		kp_IR = [];
-		kp_SR = [];
-		kp_SF = [];
 
 		for i in MF_performance[iOrdering::nOrdering]: reg_IR.append(i[j].regression_param); sco_IR.append(i[j].score); kp_IR.append(i[j].kernel_param);
 		for i in LG_performance[iOrdering::nOrdering]: reg_SR.append(i[j].regression_param); sco_SR.append(i[j].score); kp_SR.append(i[j].kernel_param);
@@ -352,17 +386,20 @@ for j in range(len(Nobs_array)):
 		f_IR.write('Mean: ' + str( np.array(reg_IR).mean(axis=0) ) + '\n');
 		f_IR.write('Std:  ' + str( np.array(reg_IR).std(axis=0) ) + '\n');
 		f_IR.write('Mean score:  ' + str( np.array(sco_IR).mean(axis=0) ) + '    Std score:  ' +  str( np.array(sco_IR).std(axis=0) ) + '\n');
-		f_IR.write('Mean reg p:  ' + str( np.array(kp_IR ).mean(axis=0) ) + '    Std reg p:  ' +  str( np.array(kp_IR ).std(axis=0) ) + '\n');
+		f_IR.write('Mean ker p:  ' + str( np.array(kp_IR ).mean(axis=0) ) + '    Std reg p:  ' +  str( np.array(kp_IR ).std(axis=0) ) + '\n');
+		av_score_IR[iOrdering, j] = np.array(sco_IR ).mean(axis=0); st_score_IR[iOrdering, j] = np.array(sco_IR ).std(axis=0);
 
 		f_SR.write('Mean: ' + str( np.array(reg_SR).mean(axis=0) ) + '\n');
 		f_SR.write('Std:  ' + str( np.array(reg_SR).std(axis=0) ) + '\n');
 		f_SR.write('Mean score:  ' + str( np.array(sco_SR).mean(axis=0) ) + '    Std score:  ' +  str( np.array(sco_SR).std(axis=0) ) + '\n');
-		f_SR.write('Mean reg p:  ' + str( np.array(kp_SR ).mean(axis=0) ) + '    Std reg p:  ' +  str( np.array(kp_SR ).std(axis=0) ) + '\n');
+		f_SR.write('Mean ker p:  ' + str( np.array(kp_SR ).mean(axis=0) ) + '    Std reg p:  ' +  str( np.array(kp_SR ).std(axis=0) ) + '\n');
+		av_score_SR[iOrdering, j] = np.array(sco_SR ).mean(axis=0); st_score_SR[iOrdering, j] = np.array(sco_SR ).std(axis=0);
 
 		f_SF.write('Mean: ' + str( np.array(reg_SF).mean(axis=0) ) + '\n');
 		f_SF.write('Std:  ' + str( np.array(reg_SF).std(axis=0) ) + '\n');
 		f_SF.write('Mean score:  ' + str( np.array(sco_SF).mean(axis=0) ) + '    Std score:  ' +  str( np.array(sco_SF).std(axis=0) ) + '\n');
-		f_SF.write('Mean reg p:  ' + str( np.array(kp_SF ).mean(axis=0) ) + '    Std reg p:  ' +  str( np.array(kp_SF ).std(axis=0) ) + '\n');
+		f_SF.write('Mean ker p:  ' + str( np.array(kp_SF ).mean(axis=0) ) + '    Std reg p:  ' +  str( np.array(kp_SF ).std(axis=0) ) + '\n');
+		av_score_SF[iOrdering, j] = np.array(sco_SF ).mean(axis=0); st_score_SF[iOrdering, j] = np.array(sco_SF ).std(axis=0);
 
 		f_IR.write('N reg param, score, kern params\n');
 		f_SR.write('N reg param, score, kern params\n');
@@ -397,10 +434,40 @@ for j in range(len(Nobs_array)):
 f_IR.close()
 f_SR.close()
 
-exit()
 
 
-#plt.show()
+for iOrdering in range(nOrdering):
+	string_save = 'PRELIMINARY_PAPER_D/' + Mode + '_' + Mode_Opt + '_o' + str(iOrdering) + '_';
+	if LASSO:      string_save+= 'LASSO_';
+
+	plt.figure()
+	plt.plot(av_score_IR[iOrdering, :], color='r', label='IR')
+	plt.plot(av_score_SR[iOrdering, :], color='b', label='SR')
+	plt.plot(av_score_SF[iOrdering, :], color='g', label='SF')
+
+	plt.xlabel(r'$N^l$', fontsize=FONTSIZE);
+	plt.ylabel(r'$score_{AVG}$', fontsize=FONTSIZE);
+	plt.xticks(np.arange(0, len(Nobs_array)), [str(j) for j in Nobs_array], fontsize=FONTSIZE);
+	plt.yticks(fontsize=FONTSIZE);
+
+	plt.legend(prop={'size': FONTSIZE}, frameon=False)
+	plt.tight_layout()
+	plt.savefig( string_save + 'nPoints_behavior_AVG.pdf');
+
+	plt.figure()
+	plt.plot(st_score_IR[iOrdering, :], color='r', label='IR')
+	plt.plot(st_score_SR[iOrdering, :], color='b', label='SR')
+	plt.plot(st_score_SF[iOrdering, :], color='g', label='SF')
+
+	plt.xlabel(r'$N^l$', fontsize=FONTSIZE);
+	plt.ylabel(r'$score_{STD}$', fontsize=FONTSIZE);
+	plt.xticks(np.arange(0, len(Nobs_array)), [str(j) for j in Nobs_array], fontsize=FONTSIZE);
+	plt.yticks(fontsize=FONTSIZE);
+
+	plt.legend(prop={'size': FONTSIZE}, frameon=False)
+	plt.tight_layout()
+	plt.savefig( string_save + 'nPoints_behavior_STD.pdf');
+
 exit()
 
 
