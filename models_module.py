@@ -4,30 +4,35 @@ import math
 x_min = 0.0;
 x_max = 1.0;
 
+#sn_1 =  0.0; sn_2 =  0.0; sn_3 =  0.0; sn_4 =  0.0; sn_5 =  0.0; sn_6 =  0.0; sn_7 =  0.0; sn_8 =  0.0;
+#sn_1 = 1e-4; sn_2 = 1e-4; sn_3 = 1e-4; sn_4 = 1e-4; sn_5 = 1e-4; sn_6 = 1e-4; sn_7 = 1e-4; sn_8 = 1e-4;
+sn_1 = 1e-2; sn_2 = 1e-2; sn_3 = 1e-2; sn_4 = 1e-2; sn_5 = 1e-2; sn_6 = 1e-2; sn_7 = 1e-2; sn_8 = 1e-2;
+
+#sn_1 = 1e-12; sn_2 = 1e-12; sn_3 = 1e-12; sn_4 = 1e-12; sn_5 = 1e-12; sn_6 = 1e-12; sn_7 = 1e-12; sn_8 = 1e-12;
 
 def model_1(x):
-	return [x, 1e-8*np.random.normal(0.0, 1.0)];
+	return [x + sn_1*np.random.normal(0.0, 1.0), sn_1];
 
 def model_2(x):
-	return [0.7*(np.sin(x/x_max*math.pi*8)*x + 0.0), 1e-8*np.random.normal(0.0, 1.0)];
+	return [0.7*(np.sin(x/x_max*math.pi*8)*x + 0.0) + sn_2*np.random.normal(0.0, 1.0), sn_2];
 
 def model_3(x):
-	return [-5.0*x + 1.0, 2e-8*np.random.normal(0.0, 1.0)];
+	return [-5.0*x + 1.0 + sn_3*np.random.normal(0.0, 1.0), sn_3];
 
 def model_4(x):
-	return [np.sin(x/x_max*math.pi*8)*x + x, 2e-8*np.random.normal(0.0, 1.0)];
+	return [np.sin(x/x_max*math.pi*8)*x + x + sn_4*np.random.normal(0.0, 1.0), sn_4];
 
 def model_5(x):
-	return [-5.0*x**2, 2e-8*np.random.normal(0.0, 1.0)];
+	return [-5.0*x**2 + sn_5*np.random.normal(0.0, 1.0), sn_5];
 
 def model_6(x):
-	return [np.sin(x/x_max*math.pi*8.2)*x + x, 2e-8*np.random.normal(0.0, 1.0)];
+	return [np.sin(x/x_max*math.pi*8.2)*x + x + sn_6*np.random.normal(0.0, 1.0), sn_6];
 
 def model_7(x):
-	return [np.sin(x/x_max*math.pi*8.4)*x + x, 2e-8*np.random.normal(0.0, 1.0)];
+	return [np.sin(x/x_max*math.pi*8.4)*x + x + sn_7*np.random.normal(0.0, 1.0), sn_7];
 
 def model_8(x):
-	return [np.sin(x/x_max*math.pi*8.6)*x + x, 2e-8*np.random.normal(0.0, 1.0)];
+	return [np.sin(x/x_max*math.pi*8.6)*x + x + sn_8*np.random.normal(0.0, 1.0), sn_8];
 
 
 
@@ -74,37 +79,45 @@ def Hartmann(x):
 	return f;
 
 u0= -5.0;
+delta = 0.2;
 def U_1(x):
-	return [0.5* (Hartmann(x)**2/u0 + u0), 2e-8*np.random.normal(0.0, 1.0)];
+	xd = x + delta/1.0*np.ones((np.shape(x)));
+	return [0.5* (Hartmann( xd )**2/u0 + u0), 2e-8*np.random.normal(0.0, 1.0)];
 
 def U_2(x):
-	y= U_1(x)[0];
-	y = 0.5* (Hartmann(x)**2/y + y );
+	xd = x + delta/2.0*np.ones((np.shape(x)));
+	y= U_1( xd )[0];
+	y = 0.5* (Hartmann( xd )**2/y + y );
 	return [y, 2e-8*np.random.normal(0.0, 1.0)];
 
 def U_3(x):
-	y= U_1(x)[0];
-	y = 0.5* (Hartmann(x)**2/y + y );
+	xd = x + delta/3.0*np.ones((np.shape(x)));
+	y= U_2( xd )[0];
+	y = 0.5* (Hartmann( xd )**2/y + y );
 	return [y, 2e-8*np.random.normal(0.0, 1.0)];
 
 def U_4(x):
-	y= U_1(x)[0];
-	y = 0.5* (Hartmann(x)**2/y + y );
+	xd = x + delta/4.0*np.ones((np.shape(x)));
+	y= U_3( xd )[0];
+	y = 0.5* (Hartmann( xd )**2/y + y );
 	return [y, 2e-8*np.random.normal(0.0, 1.0)];
 
 def U_5(x):
-	y= U_1(x)[0];
-	y = 0.5* (Hartmann(x)**2/y + y );
+	xd = x + delta/5.0*np.ones((np.shape(x)));
+	y= U_4( xd )[0];
+	y = 0.5* (Hartmann( xd )**2/y + y );
 	return [y, 2e-8*np.random.normal(0.0, 1.0)];
 
 def U_6(x):
-	y= U_1(x)[0];
-	y = 0.5* (Hartmann(x)**2/y + y );
+	xd = x + delta/6.0*np.ones((np.shape(x)));
+	y= U_5( xd )[0];
+	y = 0.5* (Hartmann( xd )**2/y + y );
 	return [y, 2e-8*np.random.normal(0.0, 1.0)];
 
 def U_7(x):
-	y= U_1(x)[0];
-	y = 0.5* (Hartmann(x)**2/y + y );
+	xd = x + delta/7.0*np.ones((np.shape(x)));
+	y= U_6( xd )[0];
+	y = 0.5* (Hartmann( xd )**2/y + y );
 	return [y, 2e-8*np.random.normal(0.0, 1.0)];
 
 

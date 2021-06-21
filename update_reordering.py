@@ -50,8 +50,8 @@ col = ['r', 'b', 'm'];
 FONTSIZE = 22
 
 Mode='G'
-Mode_Opt = 'MLLD';
-LASSO= True;
+Mode_Opt = 'MLL';
+LASSO= False;
 
 Nested= False;
 Matching = False;
@@ -119,7 +119,7 @@ Nobs_array = [  5, 10, 15, 17];
 # Nobs_array = [ 5, 9, 17 ];
 #Nobs_array = [ 17 ];
 Nobs_array = [ 3, 6, 9 ];
-Nobs_array = [ 2 ];
+#Nobs_array = [ 2 ];
 
 
 nOrdering = 1;
@@ -144,9 +144,9 @@ for nn in range(len(Nobs_array)):
 		Nobs_model   = [Nobs for i in range(Nmod)];
 	else:
 		if not Deterministic:
-			#Nobs_model = [(Nmod - i)*Nobs for i in range(Nmod)];
-			Nobs_model   = [10*Nobs for i in range(Nmod)];
-			Nobs_model[-1] = Nobs;
+			Nobs_model = [(Nmod - i)*Nobs for i in range(Nmod)];
+			# Nobs_model   = [10*Nobs for i in range(Nmod)];
+			# Nobs_model[-1] = Nobs;
 		else:
 			Nobs_model = [ (Nobs - 1) *2**(Nmod - i - 1) + 1   for i in range(Nmod)];
 

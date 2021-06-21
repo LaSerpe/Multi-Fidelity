@@ -27,14 +27,6 @@ class GP:
 			self.basis_function = copy.deepcopy(Basis);
 			self.Nbasis= len(Basis);
 
-	def compute_Gramm_matrix(self, x1, x2):
-		K = self.kernel(x1, x2);
-		if self.mode != 'S':
-			for i in range(self.Nbasis): 
-				K += self.basis_function[i](x1, x2, return_variance=True)[1]*self.regression_param[i]**2;
-		if type(self.Tychonov_regularization_coeff) is float: K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;
-		return K;
-
 
 	def compute_loglikelihood(self, x1, y): #to check
 		Basis = np.zeros((len(x1), 1));
@@ -42,7 +34,15 @@ class GP:
 			for i in range(self.Nbasis): 
 				Basis += self.basis_function[i](x1)*self.regression_param[i];
 
-		L = cholesky( self.compute_Gramm_matrix(x1, x1), lower=True); 
+		K = self.kernel(x1, x1);
+		if self.mode != 'S':
+			for i in range(self.Nbasis): 
+				K += self.basis_function[i](x1, x1, return_variance=True)[1]*self.regression_param[i]**2;
+
+		if type(self.Tychonov_regularization_coeff) is float: K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;
+		else: K[np.diag_indices_from(K)] += 1e-4;
+
+		L = cholesky( K, lower=True); 
 		alpha = cho_solve((L, True), (y - Basis ) )
 		return - np.array(0.5*( y - Basis ).T.dot(alpha) - np.log(np.diag(L)).sum()).flatten() - 0.5*len(x1)*np.log(2*math.pi);
 
@@ -69,6 +69,7 @@ class GP:
 				K += self.basis_v[i]*self.regression_param[i]**2;
 
 		if type(self.Tychonov_regularization_coeff) is float: K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;	
+		elif isinstance(self.Tychonov_regularization_coeff, np.ndarray): K[np.diag_indices_from(K)] = np.add(K[np.diag_indices_from(K)], self.Tychonov_regularization_coeff.flatten()); 
 
 		L = cholesky(K, lower=True); 
 		alpha = cho_solve((L, True), b )
@@ -92,6 +93,7 @@ class GP:
 				K += self.basis_v[i]*self.regression_param[i]**2;
 
 		if type(self.Tychonov_regularization_coeff) is float: K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;	
+		elif isinstance(self.Tychonov_regularization_coeff, np.ndarray): K[np.diag_indices_from(K)] = np.add(K[np.diag_indices_from(K)], self.Tychonov_regularization_coeff.flatten());
 
 		L = cholesky(K, lower=True);
 		a = cho_solve((L, True), b )
@@ -181,7 +183,7 @@ class GP:
 		self.LASSO = LASSO;
 
 
-		if self.Opt_Mode == 'MLL_MC': self.MC_fit(); return;
+		if self.Opt_Mode == 'MLL_MC': return self.MC_fit();
 
 		if self.Opt_Mode == 'MLL' or Opt_Mode == 'MLLW' or Opt_Mode == 'MLLD' or Opt_Mode == 'MLLS':
 			cost_function= self.cost_function_likelihood;
@@ -190,7 +192,7 @@ class GP:
 			if self.mode == 'G':
 				self.k_tmp = [];
 				for i in range(self.Nbasis):
-					self.k_tmp.append( self.basis_function[i](self.Training_values, self.Training_points, True)[1] )
+					self.k_tmp.append( self.basis_function[i](self.Training_values, self.Training_points, True)[1] ) ######################### Check this line for LOO
 		else:
 			print("Error! Optimization mode");
 			exit();
@@ -212,7 +214,7 @@ class GP:
 
 		if Opt_Mode == 'MLLD' and self.Nbasis != 0:
 			tmp = np.array([x.flatten() for x in self.basis]).T;
-			self.regression_param = cho_solve((  cholesky(tmp.T.dot(tmp) + self.Tychonov_regularization_coeff*np.eye(self.Nbasis), lower=True), True), tmp.T.dot(self.Training_values) );
+			self.regression_param = cho_solve((  cholesky(tmp.T.dot(tmp) + 1e-4*np.eye(self.Nbasis), lower=True), True), tmp.T.dot(self.Training_values) );
 
 			# if LASSO:
 			# 	self.regression_param = self.opt_LASSO(np.linalg.norm(self.regression_param)/2.0);
@@ -279,11 +281,10 @@ class GP:
 		if self.mode != 'S':
 			for i in range(self.Nbasis): 
 				K += self.basis_v[i]*self.regression_param[i]**2;
-		if type(self.Tychonov_regularization_coeff) is float:
-			K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;
+		if type(self.Tychonov_regularization_coeff) is float: K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;
+		elif isinstance(self.Tychonov_regularization_coeff, np.ndarray): K[np.diag_indices_from(K)] = np.add(K[np.diag_indices_from(K)], self.Tychonov_regularization_coeff.flatten());
 		self.L     = cholesky(K, lower=True);
 
-		#self.L     = cholesky(self.compute_Gramm_matrix(self.Training_points, self.Training_points), lower=True);
 		self.alpha = cho_solve((self.L, True), b)
 
 
@@ -295,7 +296,8 @@ class GP:
 
 		bounds = self.kernel.bounds
 		for i in self.regression_param: 
-			bounds = np.append(bounds, [[-10.0, 10.0]], axis=0)
+			#bounds = np.append(bounds, [[-10.0, 10.0]], axis=0)
+			bounds = np.append(bounds, [[0.0, 3.0]], axis=0)
 			
 
 		self.basis   = [];
@@ -320,18 +322,20 @@ class GP:
 		PI_track = [];
 		PI_track.append( - cost_function( position_track[-1] )[0] );
 
-
+		noise_reg = 0.001; #self.Tychonov_regularization_coeff ????
 		Nburn = 20000;
 		Nmcmc = 50000;
 		alpha = 2.38**2/dim_sto;
-		#alpha = 2.38**2/dim_sto;
-		update_cov = 1000;
+		update_cov = 2000;
 		give_info = 200000;
 
 		#C = alpha*np.eye(dim_sto);
 		C = alpha*np.diag(  np.array([ (bounds[k, 1] - bounds[k, 0])**2/12.0 for k in range(dim_sto)])  );
 		L = cholesky(C, lower=True);
 		mid_acceptance_rate = 0;
+
+		fig_tab = [];
+		fig_mixing = [];
 
 		for iOut in [Nburn, Nmcmc]:
 			count = 0;
@@ -340,14 +344,14 @@ class GP:
 				print('Burn-in phase...')
 			if iOut == Nmcmc: 
 				print('MCMC phase...')
-				C = alpha*np.cov( np.array(position_track[-update_cov:]).T )+0.001*np.eye(dim_sto);
+				C = alpha*np.cov( np.array(position_track[-update_cov:]).T ) + noise_reg*np.eye(dim_sto);
 				L = cholesky(C, lower=True);
 
 
 			for i in range(iOut):
 
 				if( i % update_cov == 0 and iOut == Nburn and i != 0):
-					C = alpha*np.cov( np.array(position_track[-update_cov:]).T )+0.001*np.eye(dim_sto);
+					C = alpha*np.cov( np.array(position_track[-update_cov:]).T ) + noise_reg*np.eye(dim_sto);
 					L = cholesky(C, lower=True);
 
 
@@ -388,32 +392,53 @@ class GP:
 				pt = np.array(position_track[Nburn::]);
 				pi = np.array(PI_track[Nburn::]);
 
+			fig_tab.append(plt.figure(figsize=(10, 10)));
+			fig_mixing.append(plt.figure(figsize=(10, 10)));
 
-			fig, axs = plt.subplots(dim_sto, dim_sto, sharex=True, figsize=(10,10))#, gridspec_kw={'hspace':0.1})
+			if len(self.regression_param) == 0: 
+				fig_tab[-1] = plt.figure(figsize=(10,10))
+				fig_tab[-1].text(0.5, 0.5, 'No regression parameter for \n a single  fidelity model.', ha='center', va='center', size=20)
+				fig_mixing[-1] = plt.figure(figsize=(10,10))
+				fig_mixing[-1].text(0.5, 0.5, 'No regression parameter for \n a single  fidelity model.', ha='center', va='center', size=20)
+				continue;
 
-			for iFig in range(dim_sto):
-				for jFig in range(iFig+1, dim_sto):
-					axs[iFig, jFig].scatter(pt[:, iFig], pt[:, jFig], s=2, c=pi);
-					axs[iFig, jFig].axis([bounds[iFig, 0], bounds[iFig, 1], bounds[jFig, 0], bounds[jFig, 1]]);
+			fig_tab[-1], axs = plt.subplots(len(self.regression_param), len(self.regression_param), sharex=True, figsize=(10,10), squeeze=False)#, gridspec_kw={'hspace':0.1})
+
+			lenT = len(self.kernel.theta);
+			Np = 4; qt = [1, 1.429, 0, 0];
+
+			for iFig in range(len(self.regression_param)):
+				for jFig in range(iFig+1, len(self.regression_param)):
+					axs[iFig, jFig].scatter(pt[:, lenT + jFig], pt[:, lenT + iFig], s=2, c=pi, rasterized=True);
+					axs[iFig, jFig].axis([bounds[lenT + jFig, 0], bounds[lenT + jFig, 1], bounds[lenT + iFig, 0], bounds[lenT + iFig, 1]]);
+					axs[iFig, jFig].scatter(qt[jFig], qt[iFig], s=5, c='r');
 
 
-				axs[iFig, iFig].hist(pt[:, iFig], 50, density=True, alpha=0.75)
+				axs[iFig, iFig].hist(pt[:, lenT + iFig], 50, density=True, alpha=0.75);
+				X_plot = np.linspace(bounds[lenT + iFig, 0], bounds[lenT + iFig, 1], 1000).reshape(-1, 1)
+				kde = KernelDensity(kernel='gaussian', bandwidth=(bounds[lenT + iFig, 1] - bounds[lenT + iFig, 0])/30    ).fit( pt[:, lenT + iFig].reshape(-1, 1) );
+				dens = np.exp( kde.score_samples(X_plot) );
+				axs[iFig, iFig].plot( X_plot, dens, c='b' )
 
-				# kde_1 = KernelDensity(kernel='gaussian', bandwidth=0.75).fit(pt[:, iFig].reshape(1, -1)).score_samples(np.linspace(0, 1, 100))
-				# for jFig in range(0, i):
-				# 	kde_2 = KernelDensity(kernel='gaussian', bandwidth=0.75).fit(pt[:, jFig].reshape(1, -1)).score_samples(np.linspace(0, 1, 100))
+				
 
-				# 	axs[iFig, jFig].plot_surface(X, Y, pt[:][iFig]*pt[:][jFig], s=5);
-				# 	#axs[iFig, jFig].axis([0, 1, 0, 1]);
+				for jFig in range(iFig):
+					kde_2 = KernelDensity(kernel='gaussian', bandwidth=(bounds[lenT + jFig, 1] - bounds[lenT + jFig, 0])/30    ).fit( pt[:, lenT + jFig].reshape(-1, 1) );
+					dens_2 = np.exp( kde_2.score_samples(X_plot) );
 
-			fig, axs = plt.subplots(dim_sto, sharex=True, figsize=(10,10))
-			for iFig in range(dim_sto):
-				axs[iFig].plot(pt[:, iFig])
+					X, Y = np.meshgrid(dens, dens_2)
+					Z = X*Y
+					X, Y = np.meshgrid(X_plot, X_plot)
+
+					axs[iFig, jFig].contourf(X, Y, Z, 10, cmap=plt.cm.viridis, origin='lower')
+					axs[iFig, jFig].scatter(qt[iFig], qt[jFig], s=5, c='r');
+
+
+			fig_mixing[-1], axs = plt.subplots(len(self.regression_param), sharex=True, figsize=(10,10), squeeze=False)
+			for iFig in range(len(self.regression_param)):
+				axs[iFig, 0].plot(pt[:, lenT + iFig])
 			#axs[iFig].axis([0, len(pt), 0, 1]);
 
-
-# fig.tight_layout()
-# plt.savefig('../PAPER/figure/analysis/EPM_compare_diff.pdf')
 
 
 		mll_index = np.argmax(PI_track[Nburn::]);
@@ -432,12 +457,13 @@ class GP:
 		if self.mode != 'S':
 			for i in range(self.Nbasis): 
 				K += self.basis_v[i]*self.regression_param[i]**2;
-		if type(self.Tychonov_regularization_coeff) is float:
-			K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;
+		if type(self.Tychonov_regularization_coeff) is float: K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;
+		elif isinstance(self.Tychonov_regularization_coeff, np.ndarray): K[np.diag_indices_from(K)] = np.add(K[np.diag_indices_from(K)], self.Tychonov_regularization_coeff.flatten());
 		self.L     = cholesky(K, lower=True);
 		self.alpha = cho_solve((self.L, True), b)
 
 
+		return fig_tab, fig_mixing;
 
 
 
@@ -461,7 +487,7 @@ class GP:
 				k_r += np.array( self.basis_function[i](self.Training_points, x2, True)[1] )*self.regression_param[i]**2;
 
 		mean = Basis + k_l.dot( np.array(self.alpha) )
-		
+
 		if return_variance is True:
 			v_r = cho_solve((self.L,   True), k_r  );
 			if np.array_equal(x1, x2):
