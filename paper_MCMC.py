@@ -56,7 +56,7 @@ LASSO_list     = [False, False, True, False, False, False];
 Mode='G'#Don't touch this for the paper
 
 #Nobs_array = [ 6, 9, 12, 15 ];
-Nobs_array = [ 15 ]#, 9, 12, 15 ];
+Nobs_array = [ 25 ]#, 9, 12, 15 ];
 NdataRandomization= 1;#100;
 Nested= False;
 Matching = False;
@@ -73,10 +73,17 @@ xx = np.linspace(x_min, x_max, Np);
 
 # Complex Function
 models = [model_1, model_2, model_6, model_3, model_4];
+models = [model_1, model_2, model_4, model_4];
 truth = model_4
+
+# Polynomial Function
+# models = [P0, P1, P3, P5, PT];
+# truth = PT
+
+
 Nmod = len(models);
 
-Tychonov_regularization_coeff= 1e-4;
+Tychonov_regularization_coeff= 1e-2;
 
 gp_restart = 10;
 kernel = ConstantKernel(1.0**2, (1.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, length_scale_bounds=(1.0e-1, 1.0e1)) \

@@ -61,7 +61,6 @@ class GP:
 		if self.Opt_Mode == 'MLLS' and self.Nbasis != 0:
 			tmp = np.array([x.flatten() for x in self.basis]).T;
 			self.regression_param = cho_solve((  cholesky(tmp.T.dot(np.linalg.inv(K)).dot(tmp), lower=True), True), tmp.T.dot(np.linalg.inv(K)).dot(self.Training_values) );
-			#print(self.regression_param)
 
 		for i in range(self.Nbasis): 
 			b -= self.basis[ i ]*self.regression_param[i];
@@ -74,8 +73,45 @@ class GP:
 		L = cholesky(K, lower=True); 
 		alpha = cho_solve((L, True), b )
 
-		return np.array(0.5*b.T.dot(alpha) + np.log(np.diag(L)).sum()).flatten();
+		return np.array(0.5*b.T.dot(alpha) + np.log(np.diag(L)).sum() ).flatten();
+		#return np.array(0.5*b.T.dot(alpha) + 0.00*np.log(np.diag(L)).sum()).flatten(); # NO PENALTY
 
+
+
+
+	# def cost_function_gaussian_likelihood(self, theta):
+	# 	self.kernel.theta = theta[0:len(self.kernel.theta)];
+	# 	if (len(self.kernel.theta) != len(theta)): 
+	# 		self.regression_param = np.array(theta[len(self.kernel.theta)::]);
+	# 		if self.Opt_Mode == 'MLLW': self.regression_param /= np.sum(np.absolute(self.regression_param)) + 1e-16;
+
+
+	# 	b = np.copy(self.Training_values);
+	# 	K = self.kernel(self.Training_points);
+
+
+	# 	for i in range(self.Nbasis): 
+	# 		b -= self.basis[ i ]*self.regression_param[i];
+	# 		if self.mode != 'S':
+	# 			K += self.basis_v[i]*self.regression_param[i]**2;
+
+	# 	if type(self.Tychonov_regularization_coeff) is float: K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;	
+	# 	elif isinstance(self.Tychonov_regularization_coeff, np.ndarray): K[np.diag_indices_from(K)] = np.add(K[np.diag_indices_from(K)], self.Tychonov_regularization_coeff.flatten()); 
+
+	# 	L = cholesky(K, lower=True); 
+	# 	alpha = cho_solve((L, True), b )
+
+	# 	# out = 0.0
+	# 	# for i in range(len(self.Training_values)): #this may give troubles if training values is not a 1d array
+	# 	# 	t = np.exp( - 0.5 * (self.predict(self.Training_points[i].reshape(-1, 1), return_variance= False) - self.Training_values[i])**2/0.1**2 )
+	# 	# 	out += np.log( t + 1e-8 );
+
+	# 	out = 0.0
+	# 	pt = K.T.dot(alpha);
+	# 	for i in range( len(self.Training_values) ): #this may give troubles if training values is not a 1d array
+	# 		out += 0.5 * ( (pt[i] - b[i])/0.1)**2;
+
+	# 	return out;
 
 
 
@@ -289,7 +325,22 @@ class GP:
 
 
 
+
+	def cost_function_likelihood_mixture(self, q):
+		l = 0.0;
+		for i in range(self.Nm):
+			l += q[-self.Nm+i] * np.exp( - self.cost_function_likelihood( q[i*self.Np:(i+1)*self.Np] ) ); # q is already scaled
+		return - np.log( l + 1e-8 );
+
+
+
+
 	def MC_fit(self):
+
+		#self.Opt_Mode = 'MLLW'; ############### To fix when MLL reg param are passed back to the outer function
+
+		self.Nm = 0; 
+		#self.Np = len(self.kernel.theta) + len(self.regression_param); cost_function= self.cost_function_likelihood_mixture
 
 		cost_function= self.cost_function_likelihood;
 		
@@ -297,7 +348,7 @@ class GP:
 		bounds = self.kernel.bounds
 		for i in self.regression_param: 
 			#bounds = np.append(bounds, [[-10.0, 10.0]], axis=0)
-			bounds = np.append(bounds, [[0.0, 3.0]], axis=0)
+			bounds = np.append(bounds, [[-2.0, 2.0]], axis=0)
 			
 
 		self.basis   = [];
@@ -308,29 +359,43 @@ class GP:
 			self.basis_v.append( a[1] );
 		
 
-		dim_sto = len(self.kernel.theta) + len(self.regression_param);
+		for i in range(self.Nm - 1): 
+			bounds = np.append(bounds, bounds[0:self.Np], axis=0);
+		for i in range(self.Nm): 
+			bounds = np.append(bounds, [[0.0, 1.0]], axis=0);
+
+
+
+
+		MIN = float("inf");
+		for int_it in range(10):
+			InternalRandomGenerator = np.random.RandomState();
+			x0 = InternalRandomGenerator.uniform(bounds[:, 0], bounds[:, 1]);
+			#res = sp.optimize.minimize(cost_function, x0, method="L-BFGS-B", bounds=bounds)
+			res = sp.optimize.minimize(cost_function, x0, method="L-BFGS-B", bounds=bounds, tol= 1e-09, options={'disp': None, 'maxcor': 10, 'ftol': 1e-09, 'maxiter': 15000})
+			if (cost_function(res.x) < MIN):
+				MIN   = cost_function(res.x)
+				qt = np.copy(res.x);
+
+
+
+		dim_sto = np.shape(bounds)[0];
 		InternalRandomGenerator = np.random.RandomState();
 
-		# position_track = [] 
-		# position_track.append( np.array(InternalRandomGenerator.uniform(0, 1, dim_sto)).T );
-		# PI_track = [];
-		# PI_track.append( - cost_function( [ bounds[k, 0] + (bounds[k, 1] - bounds[k, 0]) * position_track[-1][k]   for k in range(dim_sto)] )[0] );
-
-
 		position_track = [] 
-		position_track.append( np.array(InternalRandomGenerator.uniform(bounds[:, 0], bounds[:, 1])).T );
+		position_track.append( np.array(InternalRandomGenerator.uniform(0, 1, dim_sto)).T );
 		PI_track = [];
-		PI_track.append( - cost_function( position_track[-1] )[0] );
+		PI_track.append( - cost_function( [ bounds[k, 0] + (bounds[k, 1] - bounds[k, 0]) * position_track[-1][k]   for k in range(dim_sto)] )[0] );
 
-		noise_reg = 0.001; #self.Tychonov_regularization_coeff ????
-		Nburn = 20000;
-		Nmcmc = 50000;
+
+		noise_reg = 0.000001; 
+		Nburn = 48000;
+		Nmcmc = 80000;
 		alpha = 2.38**2/dim_sto;
-		update_cov = 2000;
+		update_cov = 4000;
 		give_info = 200000;
 
-		#C = alpha*np.eye(dim_sto);
-		C = alpha*np.diag(  np.array([ (bounds[k, 1] - bounds[k, 0])**2/12.0 for k in range(dim_sto)])  );
+		C = alpha*np.diag(  np.array([ 1.0 for k in range(dim_sto)])  );
 		L = cholesky(C, lower=True);
 		mid_acceptance_rate = 0;
 
@@ -350,27 +415,25 @@ class GP:
 
 			for i in range(iOut):
 
-				if( i % update_cov == 0 and iOut == Nburn and i != 0):
-					C = alpha*np.cov( np.array(position_track[-update_cov:]).T ) + noise_reg*np.eye(dim_sto);
-					L = cholesky(C, lower=True);
+				if( i % update_cov == 0 and i != 0):
+
+					if iOut == Nburn: 
+						print("{:.2f}".format( float(i)/Nburn*100 ), " acceptance rate: ", "{:.2f}".format((float(count)/i*100)) )
+						C = alpha*np.cov( np.array( position_track[-update_cov:] ).T ) + noise_reg*np.eye(dim_sto);
+						L = cholesky(C, lower=True);
+					if iOut == Nmcmc: 
+						print("{:.2f}".format( float(i)/Nmcmc*100 ), " acceptance rate: ", "{:.2f}".format((float(count)/i*100)) )
 
 
-				# if( i % give_info == 0 ):
-				# 	print( float(mid_acceptance_rate) / give_info*100)
-				# 	mid_acceptance_rate = 0;
-	        
-				#position = position_old[:] + 0.05*(InternalRandomGenerator.uniform(bounds[:, 0], bounds[:, 1])-position_old); 
 				position = position_track[-1] + L.dot(np.array(InternalRandomGenerator.normal(0.0, 1.0, dim_sto)).T );
 
 
-				#if any(k < 0.0 for k in position) or any(k > 1.0 for k in position):
-				if any(position[k] < bounds[k, 0] for k in range(dim_sto)) or any(position[k] > bounds[k, 1] for k in range(dim_sto)):
+				if any(k < 0.0 for k in position) or any(k > 1.0 for k in position):
 					position_track.append(position_track[-1]);
 					PI_track.append(PI_track[-1]);
 					continue;
 				else:
-					#PI = - cost_function( [ bounds[k, 0] + (bounds[k, 1] - bounds[k, 0]) * position[k]   for k in range(dim_sto)] )[0];
-					PI = - cost_function( position )[0];
+					PI = - cost_function( [ bounds[k, 0] + (bounds[k, 1] - bounds[k, 0]) * position[k]   for k in range(dim_sto)] )[0];
 
 
 				if( (PI - PI_track[-1]) >= np.log(InternalRandomGenerator.uniform()) ):
@@ -385,12 +448,26 @@ class GP:
 			if iOut == Nburn: 
 				print('BURN-IN acceptance rate: ' + str(float(count)/Nburn*100))
 				pt = np.array(position_track[0:Nburn]);
+				for i in range(Nburn):
+					for k in range(dim_sto):
+						pt[i][k] *= (bounds[k, 1] - bounds[k, 0]);
+						pt[i][k] += bounds[k, 0];
 				pi = np.array(PI_track[0:Nburn]);
 
 			if iOut == Nmcmc:
 				print('MCMC acceptance rate: ' + str(float(count)/Nmcmc*100))
 				pt = np.array(position_track[Nburn::]);
+				for i in range(Nmcmc):
+					for k in range(dim_sto):
+						pt[i][k] *= (bounds[k, 1] - bounds[k, 0]);
+						pt[i][k] += bounds[k, 0];
 				pi = np.array(PI_track[Nburn::]);
+
+
+
+
+
+
 
 			fig_tab.append(plt.figure(figsize=(10, 10)));
 			fig_mixing.append(plt.figure(figsize=(10, 10)));
@@ -404,14 +481,13 @@ class GP:
 
 			fig_tab[-1], axs = plt.subplots(len(self.regression_param), len(self.regression_param), sharex=True, figsize=(10,10), squeeze=False)#, gridspec_kw={'hspace':0.1})
 
-			lenT = len(self.kernel.theta);
-			Np = 4; qt = [1, 1.429, 0, 0];
+			lenT = len(self.kernel.theta); 
 
 			for iFig in range(len(self.regression_param)):
 				for jFig in range(iFig+1, len(self.regression_param)):
 					axs[iFig, jFig].scatter(pt[:, lenT + jFig], pt[:, lenT + iFig], s=2, c=pi, rasterized=True);
 					axs[iFig, jFig].axis([bounds[lenT + jFig, 0], bounds[lenT + jFig, 1], bounds[lenT + iFig, 0], bounds[lenT + iFig, 1]]);
-					axs[iFig, jFig].scatter(qt[jFig], qt[iFig], s=5, c='r');
+					axs[iFig, jFig].scatter(qt[lenT + jFig], qt[lenT + iFig], s=5, c='r');
 
 
 				axs[iFig, iFig].hist(pt[:, lenT + iFig], 50, density=True, alpha=0.75);
@@ -423,15 +499,25 @@ class GP:
 				
 
 				for jFig in range(iFig):
-					kde_2 = KernelDensity(kernel='gaussian', bandwidth=(bounds[lenT + jFig, 1] - bounds[lenT + jFig, 0])/30    ).fit( pt[:, lenT + jFig].reshape(-1, 1) );
-					dens_2 = np.exp( kde_2.score_samples(X_plot) );
+					x = pt[:, lenT + iFig]
+					y = pt[:, lenT + jFig]
 
-					X, Y = np.meshgrid(dens, dens_2)
-					Z = X*Y
-					X, Y = np.meshgrid(X_plot, X_plot)
+					# create grid of sample locations (default: 100x100)
+					xx, yy = np.mgrid[bounds[lenT + iFig, 0]:bounds[lenT + iFig, 1]:100j, bounds[lenT + jFig, 0]:bounds[lenT + jFig, 1]:100j]
 
-					axs[iFig, jFig].contourf(X, Y, Z, 10, cmap=plt.cm.viridis, origin='lower')
-					axs[iFig, jFig].scatter(qt[iFig], qt[jFig], s=5, c='r');
+					xy_sample = np.vstack([yy.ravel(), xx.ravel()]).T
+					xy_train  = np.vstack([y, x]).T
+
+					kde_skl = KernelDensity( bandwidth=(bounds[lenT + jFig, 1] - bounds[lenT + jFig, 0])/30 )
+					kde_skl.fit(xy_train)
+
+					# score_samples() returns the log-likelihood of the samples
+					z = np.exp(kde_skl.score_samples(xy_sample))
+					zz = np.reshape(z, xx.shape)
+					axs[iFig, jFig].contourf(xx, yy, zz, 10, cmap=plt.cm.viridis, origin='lower')
+
+
+					axs[iFig, jFig].scatter(qt[lenT + iFig], qt[lenT + jFig], s=5, c='r');
 
 
 			fig_mixing[-1], axs = plt.subplots(len(self.regression_param), sharex=True, figsize=(10,10), squeeze=False)
@@ -440,11 +526,12 @@ class GP:
 			#axs[iFig].axis([0, len(pt), 0, 1]);
 
 
-
 		mll_index = np.argmax(PI_track[Nburn::]);
-		#tmp = [ bounds[k, 0] + (bounds[k, 1] - bounds[k, 0]) * position_track[mll_index][k]   for k in range(dim_sto)]
-		tmp = position_track[mll_index];
+		tmp = pt[mll_index][:];
+		# tmp = [ bounds[k, 0] + (bounds[k, 1] - bounds[k, 0]) * position_track[mll_index][k]   for k in range(dim_sto)]
+		# tmp = position_track[mll_index][:];
 
+		print("OPT MLL ", qt)
 
 		self.kernel.theta     = np.copy(tmp[0:len(self.kernel.theta)]);
 		self.regression_param = np.copy(tmp[len(self.kernel.theta)::]);

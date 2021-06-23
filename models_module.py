@@ -6,15 +6,15 @@ x_max = 1.0;
 
 #sn_1 =  0.0; sn_2 =  0.0; sn_3 =  0.0; sn_4 =  0.0; sn_5 =  0.0; sn_6 =  0.0; sn_7 =  0.0; sn_8 =  0.0;
 #sn_1 = 1e-4; sn_2 = 1e-4; sn_3 = 1e-4; sn_4 = 1e-4; sn_5 = 1e-4; sn_6 = 1e-4; sn_7 = 1e-4; sn_8 = 1e-4;
-sn_1 = 1e-2; sn_2 = 1e-2; sn_3 = 1e-2; sn_4 = 1e-2; sn_5 = 1e-2; sn_6 = 1e-2; sn_7 = 1e-2; sn_8 = 1e-2;
+#sn_1 = 1e-2; sn_2 = 1e-2; sn_3 = 1e-2; sn_4 = 1e-2; sn_5 = 1e-2; sn_6 = 1e-2; sn_7 = 1e-2; sn_8 = 1e-2;
 
-#sn_1 = 1e-12; sn_2 = 1e-12; sn_3 = 1e-12; sn_4 = 1e-12; sn_5 = 1e-12; sn_6 = 1e-12; sn_7 = 1e-12; sn_8 = 1e-12;
+sn_1 = 1e-12; sn_2 = 1e-12; sn_3 = 1e-12; sn_4 = 1e-12; sn_5 = 1e-12; sn_6 = 1e-12; sn_7 = 1e-12; sn_8 = 1e-12;
 
 def model_1(x):
 	return [x + sn_1*np.random.normal(0.0, 1.0), sn_1];
 
 def model_2(x):
-	return [0.7*(np.sin(x/x_max*math.pi*8)*x + 0.0) + sn_2*np.random.normal(0.0, 1.0), sn_2];
+	return [0.7*np.sin(x/x_max*math.pi*8)*x + sn_2*np.random.normal(0.0, 1.0), sn_2];
 
 def model_3(x):
 	return [-5.0*x + 1.0 + sn_3*np.random.normal(0.0, 1.0), sn_3];
@@ -160,7 +160,7 @@ def P6(x):
 	return [x**6, 2e-8*np.random.normal(0.0, 1.0)];
 
 def PT(x):
-	return [2*x**0 + 1*x**1 + 3*x**2 + 2*x**3 + 1*x**4 + 1*x**5 + 3*x**6 + 2e-8*np.random.normal(0.0, 1.0)];
+	return [0.5*x**0 + 1*x**1 - 0.5*x**3 + 1*x**5, 1e-12*np.random.normal(0.0, 1.0)];
 
 
 
