@@ -18,7 +18,7 @@ class GP:
 		if mode in['G', 'S', 'O']:
 			self.mode= mode;
 		else:
-			print("Error! Invalid GP mode");
+			print("Error! Invalid GP mode! S and O modes are deprecated!");
 			exit();
 		if Basis is None: 
 			self.basis_function = None;
@@ -35,9 +35,8 @@ class GP:
 				Basis += self.basis_function[i](x1)*self.regression_param[i];
 
 		K = self.kernel(x1, x1);
-		if self.mode != 'S':
-			for i in range(self.Nbasis): 
-				K += self.basis_function[i](x1, x1, return_variance=True)[1]*self.regression_param[i]**2;
+		for i in range(self.Nbasis): 
+			K += self.basis_function[i](x1, x1, return_variance=True)[1]*self.regression_param[i]**2;
 
 		if type(self.Tychonov_regularization_coeff) is float: K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;
 		else: K[np.diag_indices_from(K)] += 1e-4;
@@ -64,8 +63,7 @@ class GP:
 
 		for i in range(self.Nbasis): 
 			b -= self.basis[ i ]*self.regression_param[i];
-			if self.mode != 'S':
-				K += self.basis_v[i]*self.regression_param[i]**2;
+			K += self.basis_v[i]*self.regression_param[i]**2;
 
 		if type(self.Tychonov_regularization_coeff) is float: K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;	
 		elif isinstance(self.Tychonov_regularization_coeff, np.ndarray): K[np.diag_indices_from(K)] = np.add(K[np.diag_indices_from(K)], self.Tychonov_regularization_coeff.flatten()); 
@@ -92,8 +90,7 @@ class GP:
 
 	# 	for i in range(self.Nbasis): 
 	# 		b -= self.basis[ i ]*self.regression_param[i];
-	# 		if self.mode != 'S':
-	# 			K += self.basis_v[i]*self.regression_param[i]**2;
+	# 		K += self.basis_v[i]*self.regression_param[i]**2;
 
 	# 	if type(self.Tychonov_regularization_coeff) is float: K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;	
 	# 	elif isinstance(self.Tychonov_regularization_coeff, np.ndarray): K[np.diag_indices_from(K)] = np.add(K[np.diag_indices_from(K)], self.Tychonov_regularization_coeff.flatten()); 
@@ -125,8 +122,7 @@ class GP:
 
 		for i in range(self.Nbasis): 
 			b -= self.basis[ i ]*self.regression_param[i];
-			if self.mode != 'S':
-				K += self.basis_v[i]*self.regression_param[i]**2;
+			K += self.basis_v[i]*self.regression_param[i]**2;
 
 		if type(self.Tychonov_regularization_coeff) is float: K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;	
 		elif isinstance(self.Tychonov_regularization_coeff, np.ndarray): K[np.diag_indices_from(K)] = np.add(K[np.diag_indices_from(K)], self.Tychonov_regularization_coeff.flatten());
@@ -225,10 +221,9 @@ class GP:
 			cost_function= self.cost_function_likelihood;
 		elif self.Opt_Mode == 'LOO':
 			cost_function= self.cost_function_LOO;
-			if self.mode == 'G':
-				self.k_tmp = [];
-				for i in range(self.Nbasis):
-					self.k_tmp.append( self.basis_function[i](self.Training_values, self.Training_points, True)[1] ) ######################### Check this line for LOO
+			self.k_tmp = [];
+			for i in range(self.Nbasis):
+				self.k_tmp.append( self.basis_function[i](self.Training_values, self.Training_points, True)[1] ) ######################### Check this line for LOO
 		else:
 			print("Error! Optimization mode");
 			exit();
@@ -314,9 +309,8 @@ class GP:
 			b -= self.basis[i]*self.regression_param[i];
 
 		K = self.kernel(self.Training_points);
-		if self.mode != 'S':
-			for i in range(self.Nbasis): 
-				K += self.basis_v[i]*self.regression_param[i]**2;
+		for i in range(self.Nbasis): 
+			K += self.basis_v[i]*self.regression_param[i]**2;
 		if type(self.Tychonov_regularization_coeff) is float: K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;
 		elif isinstance(self.Tychonov_regularization_coeff, np.ndarray): K[np.diag_indices_from(K)] = np.add(K[np.diag_indices_from(K)], self.Tychonov_regularization_coeff.flatten());
 		self.L     = cholesky(K, lower=True);
@@ -541,9 +535,8 @@ class GP:
 			b -= self.basis[i]*self.regression_param[i];
 
 		K = self.kernel(self.Training_points);
-		if self.mode != 'S':
-			for i in range(self.Nbasis): 
-				K += self.basis_v[i]*self.regression_param[i]**2;
+		for i in range(self.Nbasis): 
+			K += self.basis_v[i]*self.regression_param[i]**2;
 		if type(self.Tychonov_regularization_coeff) is float: K[np.diag_indices_from(K)] += self.Tychonov_regularization_coeff;
 		elif isinstance(self.Tychonov_regularization_coeff, np.ndarray): K[np.diag_indices_from(K)] = np.add(K[np.diag_indices_from(K)], self.Tychonov_regularization_coeff.flatten());
 		self.L     = cholesky(K, lower=True);
@@ -568,10 +561,9 @@ class GP:
 			Basis   += a[0]*self.regression_param[i];
 			Basis_v += a[1]*self.regression_param[i]**2;
 
-		if self.mode == 'G':
-			for i in range(self.Nbasis): 	
-				k_l += np.array( self.basis_function[i](x1, self.Training_points, True)[1] )*self.regression_param[i]**2;
-				k_r += np.array( self.basis_function[i](self.Training_points, x2, True)[1] )*self.regression_param[i]**2;
+		for i in range(self.Nbasis): 	
+			k_l += np.array( self.basis_function[i](x1, self.Training_points, True)[1] )*self.regression_param[i]**2;
+			k_r += np.array( self.basis_function[i](self.Training_points, x2, True)[1] )*self.regression_param[i]**2;
 
 		mean = Basis + k_l.dot( np.array(self.alpha) )
 
