@@ -22,7 +22,7 @@ from GP_module import GP
 from models_module import *
 
 import subprocess
-command = ['rm PRELIMINARY_PAPER_MCMC/*']
+command = ['rm -r PRELIMINARY_PAPER_MCMC/*']
 subprocess.call(command, shell=True)
 
 def basis_function(x, return_variance= False):
@@ -56,14 +56,15 @@ LASSO_list     = [False, False, True, False, False, False];
 Mode='G'#Don't touch this for the paper
 
 #Nobs_array = [ 6, 9, 12, 15 ];
-Nobs_array = [ 25 ]#, 9, 12, 15 ];
+Nobs_array = [ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 ]; 
+#Nobs_array = [ 4 ]; 
 NdataRandomization= 1;#100;
-Nested= False;
+Nested= True;
 Matching = False;
 Equal_size= False;
 Deterministic= False;
 
-Activate_histogram_plot=False
+Activate_histogram_plot=True
 
 x_min = 0.0;
 x_max = 1.0;
@@ -73,23 +74,28 @@ xx = np.linspace(x_min, x_max, Np);
 
 # Complex Function
 models = [model_1, model_2, model_6, model_3, model_4];
-models = [model_1, model_2, model_4, model_4];
+#models = [model_1, model_2, model_4, model_3, model_4];
+#models = [model_7, model_8, model_9, model_3, model_4];
+#models = [model_7, model_8, model_9];
 truth = model_4
 
 # Polynomial Function
-# models = [P0, P1, P3, P5, PT];
+# models = [Pm1, Pm2, Pm3, PT];
 # truth = PT
 
 
 Nmod = len(models);
 
-Tychonov_regularization_coeff= 1e-2;
+Tychonov_regularization_coeff= 1e-6;
 
 gp_restart = 10;
 kernel = ConstantKernel(1.0**2, (1.0e-1**2, 1.0e1**2)) * RBF(length_scale=1.0, length_scale_bounds=(1.0e-1, 1.0e1)) \
 + WhiteKernel(noise_level=1.0e-2, noise_level_bounds=(1.0e-8, 1.0e-0));
 
 
+for nn in range(Nmod):
+	command = ['mkdir PRELIMINARY_PAPER_MCMC/M_' + str(nn)]
+	subprocess.call(command, shell=True)
 
 
 # for iMode in range(len(Mode_Opt_list)):
@@ -134,13 +140,17 @@ for iDataRandomization in range(NdataRandomization):
 		fig_frame.append(plt.figure(figsize=(14, 8)));
 	outer = gridspec.GridSpec( nOrdering, N_columns, wspace= 0.2, hspace= 0.3 );
 
+	mc_fig        = [];
+	mc_fig_mixing = [];
+
 	for nn in range(len(Nobs_array)):
 
-		mc_fig        = [];
-		mc_fig_mixing = [];
+		mc_fig.append([]);
+		mc_fig_mixing.append([]);
+
 		for qq in range( Nmod ):
-			mc_fig.append(plt.figure(figsize=(14, 8)));
-			mc_fig_mixing.append(plt.figure(figsize=(14, 8)));
+			mc_fig[-1].append(plt.figure(figsize=(14, 8)));
+			mc_fig_mixing[-1].append(plt.figure(figsize=(14, 8)));
 	
 		Nobs = Nobs_array[nn];
 		model_order = [];
@@ -153,9 +163,9 @@ for iDataRandomization in range(NdataRandomization):
 			Nobs_model   = [Nobs for i in range(Nmod)];
 		else:
 			if not Deterministic:
-				Nobs_model = [(Nmod - i)*Nobs for i in range(Nmod)];
-				#Nobs_model   = [10*Nobs for i in range(Nmod)];
-				#Nobs_model[-1] = Nobs;
+				# Nobs_model = [(Nmod - i)*Nobs for i in range(Nmod)];
+				# Nobs_model   = [2*Nobs for i in range(Nmod)]; Nobs_model[-1] = Nobs;
+				Nobs_model   = [Nobs for i in range(Nmod)];
 			else:
 				Nobs_model = [ (Nobs - 1) *2**(Nmod - i - 1) + 1   for i in range(Nmod)];
 
@@ -211,10 +221,10 @@ for iDataRandomization in range(NdataRandomization):
 			for Nm in model_order[iOrdering]:
 				if not Mfs: 
 					Mfs.append(GP(kernel, mode=Mode));
-					mc_fig[Nm], mc_fig_mixing[Nm] = Mfs[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff, Opt_Mode= Mode_Opt, LASSO=LASSO);
+					mc_fig[-1][Nm], mc_fig_mixing[-1][Nm] = Mfs[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff, Opt_Mode= Mode_Opt, LASSO=LASSO);
 				else:
 					Mfs.append( GP(kernel, [Mfs[i].predict for i in range( len(Mfs) )], mode=Mode) );
-					mc_fig[Nm], mc_fig_mixing[Nm] =  Mfs[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff, Opt_Mode= Mode_Opt, LASSO=LASSO);
+					mc_fig[-1][Nm], mc_fig_mixing[-1][Nm] =  Mfs[-1].fit(Train_points[Nm].reshape(-1, 1), observations[Nm][:, 0].reshape(-1, 1), Tychonov_regularization_coeff, Opt_Mode= Mode_Opt, LASSO=LASSO);
 				print('N train points, ', len(Train_points[Nm]), ' Reg param, ', Mfs[-1].regression_param)
 				print()
 
@@ -235,11 +245,11 @@ for iDataRandomization in range(NdataRandomization):
 
 				ax = plt.Subplot(it_frame, inner[ np.where(np.array(model_order[iOrdering]) == Nm )[0][0] ])
 
-				# yy, vv = Mfs[ np.where(np.array(model_order[iOrdering]) == Nm )[0][0] ].predict(xx.reshape(-1, 1), return_variance= True) 
-				# yy = yy.flatten();
-				# ss = np.sqrt(np.diag(vv))				
-				# ax.plot(xx, yy, color='r', label='GP')
-				# ax.fill_between(xx, yy-ss, yy+ss, facecolor='r', alpha=0.3, interpolate=True)
+				yy, vv = Mfs[ np.where(np.array(model_order[iOrdering]) == Nm )[0][0] ].predict(xx.reshape(-1, 1), return_variance= True) 
+				yy = yy.flatten();
+				ss = np.sqrt(np.diag(vv))				
+				ax.plot(xx, yy, color='r', label='GP')
+				ax.fill_between(xx, yy-ss, yy+ss, facecolor='r', alpha=0.3, interpolate=True)
 
 				ax.scatter(Train_points[Nm], observations[Nm][:, 0])
 				ax.plot(xx, models[Nm](xx)[:][0], color='k', label='T')
@@ -274,17 +284,17 @@ for iDataRandomization in range(NdataRandomization):
 			# yg = yg.flatten();
 			# sg = np.sqrt(np.diag(vg))
 
-			# GP_single = GP(kernel, mode=Mode);
-			# GP_single.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1), Tychonov_regularization_coeff, Opt_Mode= Mode_Opt, LASSO=LASSO);
+			GP_single = GP(kernel, mode=Mode);
+			GP_single.fit(Train_points[-1].reshape(-1, 1), observations[-1][:, 0].reshape(-1, 1), Tychonov_regularization_coeff, Opt_Mode= 'MLL', LASSO=LASSO);
 
 			# SF_performance[-(nOrdering-iOrdering)][nn].regression_param = np.copy( GP_single.regression_param.flatten() );
 			# SF_performance[-(nOrdering-iOrdering)][nn].kernel_param		= np.copy( np.exp(GP_single.kernel.theta) );
 			# SF_performance[-(nOrdering-iOrdering)][nn].LOGL 			= np.copy( GP_single.compute_loglikelihood(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1)) )
 			# SF_performance[-(nOrdering-iOrdering)][nn].score 			= np.copy( GP_single.score(xx.reshape(-1, 1), truth(xx)[0].reshape(-1, 1)) )
 
-			# yy_s, vv_s = GP_single.predict(xx.reshape(-1, 1), return_variance= True) 
-			# yy_s = yy_s.flatten();
-			# ss_s = np.sqrt(np.diag(vv_s))
+			yy_s, vv_s = GP_single.predict(xx.reshape(-1, 1), return_variance= True) 
+			yy_s = yy_s.flatten();
+			ss_s = np.sqrt(np.diag(vv_s))
 
 			inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec= outer[N_columns*iOrdering+1], wspace=0.1, hspace=0.1)
 			ax = plt.Subplot(it_frame, inner[0])
@@ -292,8 +302,8 @@ for iDataRandomization in range(NdataRandomization):
 			ax.plot(xx, truth(xx)[0], color='k', label='T')
 			ax.plot(xx, yy, color='r', label='IR')
 			ax.fill_between(xx, yy-ss, yy+ss, facecolor='r', alpha=0.3, interpolate=True)
-			# ax.plot(xx, yy_s, color='g', label='SF')
-			# ax.fill_between(xx, yy_s-ss_s, yy_s+ss_s, facecolor='g', alpha=0.3, interpolate=True)
+			ax.plot(xx, yy_s, color='g', label='SF')
+			ax.fill_between(xx, yy_s-ss_s, yy_s+ss_s, facecolor='g', alpha=0.3, interpolate=True)
 			# ax.plot(xx, yg, color='b', label='SR')
 			# ax.fill_between(xx, yg-sg, yg+sg, facecolor='b', alpha=0.3, interpolate=True)
 			ax.legend(prop={'size': FONTSIZE}, frameon=False)
@@ -341,17 +351,22 @@ for iDataRandomization in range(NdataRandomization):
 		fig_frame[nn].savefig( string_save + str(nn) + '.pdf')
 
 
-	for nn in range( Nmod ):
-		mc_fig[nn][0].tight_layout()
-		mc_fig[nn][0].savefig( string_save + 'burnMC_' + str(nn) + '.pdf')
-		mc_fig_mixing[nn][0].tight_layout()
-		mc_fig_mixing[nn][0].savefig( string_save + 'burnMC_mix_' + str(nn) + '.pdf')
 
-	for nn in range( Nmod ):
-		mc_fig[nn][1].tight_layout()
-		mc_fig[nn][1].savefig( string_save + 'MC_' + str(nn) + '.pdf')
-		mc_fig_mixing[nn][1].tight_layout()
-		mc_fig_mixing[nn][1].savefig( string_save + 'MC_mix_' + str(nn) + '.pdf')
+	for nn in range(len(Nobs_array)):
+		for qq in range( Nmod ):
+			string_save = 'PRELIMINARY_PAPER_MCMC/M_' + str(qq) + '/' + str(iDataRandomization) + '_' + Mode + '_' + Mode_Opt + '_';
+			mc_fig[nn][qq][0].tight_layout()
+			mc_fig[nn][qq][0].savefig( string_save + 'burnMC_' + str(nn) + '_' + str(qq) + '.pdf')
+			mc_fig_mixing[nn][qq][0].tight_layout()
+			mc_fig_mixing[nn][qq][0].savefig( string_save + 'burnMC_mix_' + str(nn) + '_' + str(qq) + '.pdf')
+
+	for nn in range(len(Nobs_array)):
+		for qq in range( Nmod ):
+			string_save = 'PRELIMINARY_PAPER_MCMC/M_' + str(qq) + '/' + str(iDataRandomization) + '_' + Mode + '_' + Mode_Opt + '_';
+			mc_fig[nn][qq][1].tight_layout()
+			mc_fig[nn][qq][1].savefig( string_save + 'MC_' + str(nn) + '_' + str(qq) + '.pdf')
+			mc_fig_mixing[nn][qq][1].tight_layout()
+			mc_fig_mixing[nn][qq][1].savefig( string_save + 'MC_mix_' + str(nn) + '_' + str(qq) + '.pdf')
 
 
 av_score_IR = np.zeros((nOrdering, len(Nobs_array)));
