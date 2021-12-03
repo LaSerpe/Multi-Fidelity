@@ -54,8 +54,8 @@ Mode_Opt_list  = ['MLL', 'LOO', 'MLLD', 'MLLW', 'MLLA', 'MLLS'];
 LASSO_list     = [False, False, True, False, False, False];
 Mode='G'#Don't touch this for the paper
 
-BudgetMax = 2;
-Nobs_array = [ 7 ];
+BudgetMax = 40;
+Nobs_array = [ 8 ];
 NdataRandomization= 1;
 
 
@@ -319,6 +319,9 @@ for iDataRandomization in range(NdataRandomization):
 			# ax.fill_between(xx, yg-sg, yg+sg, facecolor='b', alpha=0.3, interpolate=True)
 			ax.legend(prop={'size': FONTSIZE}, frameon=False)
 			ax.tick_params(axis='both', labelsize=FONTSIZE)
+
+			#ax.scatter(Train_points[-1][-1], observations[-1][-1, 0], marker='v', color='r')
+
 			it_frame.add_subplot(ax)
 
 

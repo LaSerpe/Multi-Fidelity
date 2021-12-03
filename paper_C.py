@@ -380,7 +380,7 @@ for iDataRandomization in range(NdataRandomization):
 				it_frame.add_subplot(ax)
 
 
-			MF_performance[-(nOrdering-iOrdering)][nn].regression_param = np.copy( Mfs[-1].regression_param.flatten() );
+			MF_performance[-(nOrdering-iOrdering)][nn].regression_param = np.copy( Mfs[-1].regression_param.flatten()[np.array(model_order).flatten()[:-1]] );
 			MF_performance[-(nOrdering-iOrdering)][nn].kernel_param		= np.copy( np.exp(Mfs[-1].kernel.theta) );
 			MF_performance[-(nOrdering-iOrdering)][nn].LOGL 			= np.copy( Mfs[-1].compute_loglikelihood(Cp_exp[:, 0].reshape(-1, 1), Cp_exp[:, 0].reshape(-1, 1)) )
 			MF_performance[-(nOrdering-iOrdering)][nn].score 			= np.copy( Mfs[-1].score(Cp_exp[:, 0].reshape(-1, 1), Cp_exp[:, 1].reshape(-1, 1)) )
